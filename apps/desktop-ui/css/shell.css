@@ -477,6 +477,55 @@ button, input, select, textarea {
   transform: translateY(-1px);
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
 }
+.tray-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+}
+.tray-pill:hover .tray-icon-wrap,
+.tray-user-chip:hover .tray-icon-wrap {
+  transform: scale(1.15);
+}
+.tray-icon-wrap.cyan {
+  color: #38bdf8;
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.65));
+}
+.tray-icon-wrap.amber {
+  color: #f59e0b;
+  filter: drop-shadow(0 0 5px rgba(245, 158, 11, 0.65));
+}
+.tray-icon-wrap.emerald {
+  color: #10b981;
+  filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.65));
+}
+.tray-icon-wrap.purple {
+  color: #c084fc;
+  filter: drop-shadow(0 0 5px rgba(192, 132, 252, 0.65));
+}
+.tray-icon-wrap.slate {
+  color: #94a3b8;
+}
+.tray-icon-wrap svg {
+  display: block;
+}
+
+.tray-clock-pill {
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.tray-clock-pill .tray-clock {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
 .tray-dot {
   width: 7px;
   height: 7px;

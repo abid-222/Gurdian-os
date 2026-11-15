@@ -146,7 +146,7 @@
 
       const tThr = $("#tThreads");
       if (tThr && h.threads) {
-        tThr.textContent = `⚡ ${h.threads.length} Threads (IPC)`;
+        tThr.textContent = `${h.threads.length} Threads (IPC)`;
       }
 
       // Friendly Status Banner Pill (Crisp SVG - No Text Emojis)
