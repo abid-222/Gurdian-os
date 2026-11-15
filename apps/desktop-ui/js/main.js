@@ -13,10 +13,16 @@
     settings: "Settings"
   };
 
-  /* token: arrives in the URL fragment (never sent to the server), moved to sessionStorage, fragment removed */
+  /* token: arrives in the URL fragment (never sent to the server), moved to storage, fragment removed */
   const m = /[#&]t=([\w-]+)/.exec(location.hash);
-  if (m) { sessionStorage.setItem("g_tok", m[1]); history.replaceState(null, "", location.pathname); }
-  G.token = sessionStorage.getItem("g_tok");
+  if (m) {
+    try {
+      sessionStorage.setItem("g_tok", m[1]);
+      localStorage.setItem("g_tok", m[1]);
+    } catch (e) {}
+    history.replaceState(null, "", location.pathname);
+  }
+  G.token = sessionStorage.getItem("g_tok") || localStorage.getItem("g_tok");
 
   const theme = localStorage.getItem("g_theme");
   if (theme) document.documentElement.dataset.theme = theme;
@@ -26,11 +32,76 @@
     try { localStorage.setItem("g_theme", t); } catch (e) { }
   };
 
-  $("#tokenBtn").onclick = () => {
-    G.token = $("#tokenIn").value.trim();
-    sessionStorage.setItem("g_tok", G.token);
-    location.reload();
-  };
+  async function doUnlock() {
+    const inp = $("#tokenIn");
+    const raw = (inp ? inp.value : "").trim();
+    const errEl = $("#lockErr");
+    const btn = $("#tokenBtn");
+
+    if (!raw) {
+      if (errEl) {
+        errEl.textContent = "Please paste or enter your session token.";
+        errEl.style.display = "block";
+      }
+      if (inp) { inp.style.borderColor = "var(--crit)"; inp.focus(); }
+      return;
+    }
+
+    if (btn) { btn.disabled = true; btn.textContent = "Verifying..."; }
+    try {
+      const resp = await fetch("/api/v1/health", {
+        headers: { "X-Guardian-Token": raw }
+      });
+      if (resp.status === 401) {
+        if (errEl) {
+          errEl.textContent = "Invalid or expired session token. Check %LOCALAPPDATA%\\SmartOSGuardian\\runtime.json";
+          errEl.style.display = "block";
+        }
+        if (inp) { inp.style.borderColor = "var(--crit)"; inp.focus(); }
+        if (btn) { btn.disabled = false; btn.textContent = "Unlock Workstation"; }
+        return;
+      }
+      if (!resp.ok) {
+        throw new Error(`Server returned HTTP ${resp.status}`);
+      }
+      const h = await resp.json();
+      G.token = raw;
+      try {
+        sessionStorage.setItem("g_tok", raw);
+        localStorage.setItem("g_tok", raw);
+      } catch (e) {}
+
+      // Successfully authenticated: hide lock, remove boot screen if any, start app
+      $("#lock").hidden = true;
+      const b = $("#boot");
+      if (b) b.remove();
+      start(h);
+    } catch (err) {
+      if (errEl) {
+        errEl.textContent = "Connection error: " + err.message;
+        errEl.style.display = "block";
+      }
+      if (btn) { btn.disabled = false; btn.textContent = "Unlock Workstation"; }
+    }
+  }
+
+  const tBtn = $("#tokenBtn");
+  if (tBtn) tBtn.onclick = doUnlock;
+
+  const tIn = $("#tokenIn");
+  if (tIn) {
+    tIn.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        doUnlock();
+      }
+    });
+    tIn.addEventListener("input", () => {
+      const errEl = $("#lockErr");
+      if (errEl) errEl.style.display = "none";
+      tIn.style.borderColor = "";
+    });
+  }
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   async function boot() {

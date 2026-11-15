@@ -133,7 +133,15 @@ function connectWS() {
   ws.onclose = () => setTimeout(() => G.token && connectWS(), 3000);
 }
 
-function showLock() { $("#shell").hidden = true; $("#lock").hidden = false; }
+function showLock() {
+  const s = $("#shell"), l = $("#lock");
+  if (s) s.hidden = true;
+  if (l) l.hidden = false;
+  setTimeout(() => {
+    const inp = $("#tokenIn");
+    if (inp) inp.focus();
+  }, 50);
+}
 
 /* Reusable table: columns [{k, label, w, render, cls}] */
 function table(cols, rows, { onRow, rowCls, selected } = {}) {
