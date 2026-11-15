@@ -26,132 +26,51 @@
 
   const theme = localStorage.getItem("g_theme");
   if (theme) document.documentElement.dataset.theme = theme;
-  $("#themeBtn").onclick = () => {
-    const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-    document.documentElement.dataset.theme = t;
-    try { localStorage.setItem("g_theme", t); } catch (e) { }
-  };
+  const themeBtn = $("#themeBtn");
+  if (themeBtn) {
+    themeBtn.onclick = () => {
+      const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = t;
+      try { localStorage.setItem("g_theme", t); } catch (e) {}
+    };
+  }
 
-  async function doUnlock() {
-    const inp = $("#tokenIn");
-    const raw = (inp ? inp.value : "").trim();
-    const errEl = $("#lockErr");
-    const btn = $("#tokenBtn");
-
-    if (!raw) {
-      if (errEl) {
-        errEl.textContent = "Please paste or enter your session token.";
-        errEl.style.display = "block";
-      }
-      if (inp) { inp.style.borderColor = "var(--crit)"; inp.focus(); }
-      return;
-    }
-
-    if (btn) { btn.disabled = true; btn.textContent = "Verifying..."; }
+  async function init() {
     try {
-      const resp = await fetch("/api/v1/health", {
-        headers: { "X-Guardian-Token": raw }
-      });
-      if (resp.status === 401) {
-        if (errEl) {
-          errEl.textContent = "Invalid or expired session token. Check %LOCALAPPDATA%\\SmartOSGuardian\\runtime.json";
-          errEl.style.display = "block";
+      if (!G.token) {
+        const sRes = await fetch("/api/v1/auth/session");
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          if (sData.token) {
+            G.token = sData.token;
+            try {
+              sessionStorage.setItem("g_tok", G.token);
+              localStorage.setItem("g_tok", G.token);
+            } catch (e) {}
+          }
         }
-        if (inp) { inp.style.borderColor = "var(--crit)"; inp.focus(); }
-        if (btn) { btn.disabled = false; btn.textContent = "Unlock Workstation"; }
-        return;
       }
-      if (!resp.ok) {
-        throw new Error(`Server returned HTTP ${resp.status}`);
-      }
-      const h = await resp.json();
-      G.token = raw;
-      try {
-        sessionStorage.setItem("g_tok", raw);
-        localStorage.setItem("g_tok", raw);
-      } catch (e) {}
-
-      // Successfully authenticated: hide lock, remove boot screen if any, start app
-      $("#lock").hidden = true;
-      const b = $("#boot");
-      if (b) b.remove();
+      const h = await api("/health");
+      document.body.dataset.host = h.hostname;
       start(h);
     } catch (err) {
-      if (errEl) {
-        errEl.textContent = "Connection error: " + err.message;
-        errEl.style.display = "block";
-      }
-      if (btn) { btn.disabled = false; btn.textContent = "Unlock Workstation"; }
+      console.error("Failed to start Guardian UI:", err);
+      setTimeout(async () => {
+        try {
+          const sRes = await fetch("/api/v1/auth/session");
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            G.token = sData.token;
+          }
+          const h = await api("/health");
+          document.body.dataset.host = h.hostname;
+          start(h);
+        } catch (e2) {}
+      }, 500);
     }
-  }
-
-  const tBtn = $("#tokenBtn");
-  if (tBtn) tBtn.onclick = doUnlock;
-
-  const tIn = $("#tokenIn");
-  if (tIn) {
-    tIn.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        doUnlock();
-      }
-    });
-    tIn.addEventListener("input", () => {
-      const errEl = $("#lockErr");
-      if (errEl) errEl.style.display = "none";
-      tIn.style.borderColor = "";
-    });
-  }
-
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  async function boot() {
-    const b = $("#boot");
-    if (!b) return startApp();
-    let skip = false;
-    b.onclick = () => skip = true;
-    const line = async (tag, msg, cls = "ok", d = 45) => {
-      b.append(el("div", {}, el("span", { class: cls }, `[ ${tag} ] `), msg));
-      if (!skip) await sleep(d);
-    };
-    b.append(el("div", { class: "dim" }, "Starting Guardian OS Desktop...\n"));
-    try {
-      const sRes = await fetch("/api/v1/auth/session");
-      if (sRes.ok) {
-        const sData = await sRes.json();
-        if (sData.token) {
-          G.token = sData.token;
-          try {
-            sessionStorage.setItem("g_tok", G.token);
-            localStorage.setItem("g_tok", G.token);
-          } catch (e) {}
-        }
-      }
-    } catch (e) {}
-    if (!G.token) { b.remove(); return showLock(); }
-
-    let h;
-    try {
-      h = await api("/health");
-    } catch (e) {
-      await line(" FAIL ", "agent unreachable: " + e.message, "fail");
-      return;
-    }
-    document.body.dataset.host = h.hostname;
-    await line("  OK  ", "Authenticated to local loopback engine (127.0.0.1)");
-    await line("  OK  ", `Connected SQLite WAL storage: ${h.db.path.split(/[\\/]/).slice(-2).join("/")}`);
-    await line(h.db.audit_chain_ok ? "  OK  " : " WARN ", "Audit log hash chain verified", h.db.audit_chain_ok ? "ok" : "warn");
-    await line("  OK  ", `Active policy v${h.policy_version} — Deterministic Rules E2–E6`);
-    await line("  OK  ", "Loading Guardian Workstation UI...", "ok", 180);
-    b.remove();
-    start(h);
-  }
-
-  function startApp() {
-    api("/health").then(h => start(h)).catch(() => showLock());
   }
 
   function start(h) {
-    $("#shell").hidden = false;
     const userEl = $("#tUser");
     if (userEl) userEl.textContent = `guardian@${h.hostname.toLowerCase()}`;
 
@@ -351,5 +270,5 @@
     }
   }
 
-  boot();
+  init();
 })();

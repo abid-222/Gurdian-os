@@ -107,7 +107,9 @@ def create_app(agent, token: str, port: int | None = None, token_issued: float |
                 return JSONResponse({"detail": "rate limit"}, status_code=429)
             dq.append(now)
         resp = await call_next(request)
-        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["Content-Security-Policy"] = "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*"
         return resp
