@@ -216,14 +216,91 @@ function spark(values, w = 220, h = 38, max = 100) {
 
 function kv(rows) { return el("dl", { class: "kv" }, rows.filter(Boolean).flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v === undefined || v === null || v === "" ? "—" : v)])); }
 
-// Guarded, user-initiated response (terminate / suspend / resume / quarantine). Typing the process name is the confirmation.
+// Guarded, user-initiated response (terminate / suspend / resume / quarantine).
+// Replaces blocking window.prompt with a sleek non-blocking modal dialog.
+function confirmDialog({ title, message, impact, confirmPrompt, placeholder, onConfirm }) {
+  const existing = $("#confirmModal");
+  if (existing) existing.remove();
+
+  const input = el("input", {
+    type: "text",
+    placeholder: placeholder || "",
+    style: "width:100%;box-sizing:border-box;margin:12px 0 16px 0;padding:10px 12px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;font-family:inherit;font-size:14px;outline:none;"
+  });
+
+  const confirmBtn = el("button", {
+    class: "primary",
+    style: "background:#ef4444;color:#fff;font-weight:600;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;",
+    onclick: () => {
+      const val = input.value.trim();
+      close();
+      if (val && onConfirm) onConfirm(val);
+    }
+  }, "Confirm Action");
+
+  const cancelBtn = el("button", {
+    style: "background:rgba(255,255,255,0.08);color:#cbd5e1;padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);cursor:pointer;margin-right:8px;",
+    onclick: () => close()
+  }, "Cancel");
+
+  const box = el("div", {
+    class: "modal-box",
+    style: "width:min(480px, 90vw);background:rgba(17,24,39,0.95);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.12);border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.6);padding:24px;color:#fff;"
+  },
+    el("h3", { style: "margin:0 0 8px 0;font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px;" },
+      renderIcon("alert-triangle", "rose", "xs"),
+      title
+    ),
+    el("div", { style: "font-size:13.5px;color:#94a3b8;line-height:1.5;margin-bottom:12px;" }, message),
+    impact ? el("div", { class: "note", style: "margin-bottom:12px;font-size:12.5px;background:rgba(244,63,94,0.1);border-left:3px solid #f43f5e;padding:8px 12px;border-radius:4px;" }, impact) : null,
+    confirmPrompt ? el("div", { style: "font-size:12px;font-weight:600;color:#e2e8f0;margin-top:6px;" }, confirmPrompt) : null,
+    input,
+    el("div", { style: "display:flex;justify-content:flex-end;margin-top:4px;" }, cancelBtn, confirmBtn)
+  );
+
+  const modal = el("div", {
+    id: "confirmModal",
+    style: "position:fixed;inset:0;background:rgba(0,0,0,0.65);backdrop-filter:blur(8px);display:grid;place-items:center;z-index:200;"
+  }, box);
+
+  function close() {
+    modal.remove();
+  }
+
+  modal.addEventListener("mousedown", e => {
+    if (e.target === modal) close();
+  });
+
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") confirmBtn.click();
+    else if (e.key === "Escape") close();
+  });
+
+  document.body.append(modal);
+  setTimeout(() => input.focus(), 30);
+}
+
+// Non-blocking prompt replacement
 async function respond(action, target, name, after) {
   try {
     const pv = await api("/actions/preview", { method: "POST", body: { action, target } });
-    const typed = prompt(`${action.toUpperCase()} ${name}?\n\n${pv.impact}\n\nType the process name to confirm:  ${name}`);
-    if (typed === null) return;
-    const r = await api("/actions/execute", { method: "POST", body: { action, target, confirm_name: typed } });
-    toast(r.detail, r.ok ? undefined : "high");
-    if (after) after();
-  } catch (e) { toast(e.message, "high"); }
+    confirmDialog({
+      title: `${action.toUpperCase()} Process: ${name}`,
+      message: `Are you sure you want to ${action} this process? This is a guarded action.`,
+      impact: pv.impact,
+      confirmPrompt: `Type the exact process name to confirm: "${name}"`,
+      placeholder: name,
+      onConfirm: async (typed) => {
+        try {
+          const r = await api("/actions/execute", { method: "POST", body: { action, target, confirm_name: typed } });
+          toast(r.detail, r.ok ? "low" : "high");
+          if (after) after();
+        } catch (e) {
+          toast(e.message, "high");
+        }
+      }
+    });
+  } catch (e) {
+    toast(e.message, "high");
+  }
 }

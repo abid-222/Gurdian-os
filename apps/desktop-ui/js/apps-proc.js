@@ -106,7 +106,23 @@ G.apps.processes = {
             el("button", { onclick: () => scanFile(p.exe) }, "scan file")));
       } catch (e) { clear(detail).append(el("div", { class: "dim" }, e.message)); }
     }
-    async function allow(kind, value) { const reason = prompt("Reason for allowlisting (audited):"); if (!reason) return; await api("/allowlist", { method: "POST", body: { kind, value, reason } }); toast("added to allowlist"); }
+    async function allow(kind, value) {
+      confirmDialog({
+        title: `Add ${kind.toUpperCase()} to Allowlist`,
+        message: `This will suppress security detections matching this ${kind}. The action is logged to the tamper-evident audit chain.`,
+        confirmPrompt: "Reason for allowlisting (required for audit log):",
+        placeholder: "e.g. Approved developer build / internal IT administration tool",
+        onConfirm: async (reason) => {
+          if (!reason) return;
+          try {
+            await api("/allowlist", { method: "POST", body: { kind, value, reason } });
+            toast(`Added ${kind} to allowlist`, "low");
+          } catch (e) {
+            toast(e.message, "high");
+          }
+        }
+      });
+    }
     async function preview(action) { const r = await api("/actions/preview", { method: "POST", body: { action, target: st.sel } }); detail.append(el("div", { class: "note" }, `PREVIEW ONLY — nothing executed. ${action} → ${r.target.name || r.target.raw} (pid ${r.target.pid ?? "?"}). ${r.impact} ${r.reason}`)); }
     async function scanFile(p) { if (!p) return; const r = await api("/scan", { method: "POST", body: { path: p } }); detail.append(el("div", { class: "note info" }, `scan: sha256 ${r.file.sha256 || "?"} · PE=${r.file.is_pe} · signer: ${r.file.signer || "?"}${r.file.origin ? " · origin: " + (r.file.origin.zone || "?") + (r.file.origin.origin_host ? " (" + r.file.origin.origin_host + ")" : "") : ""} · model: ${r.model_status}${r.model ? " " + r.model.score + " (thr " + r.model.threshold + ")" : ""} · executed: never`)); }
     load(); const t = setInterval(load, 2500);

@@ -94,7 +94,27 @@ G.apps.settings = {
         el("div", { style: "display:flex;gap:8px;flex-wrap:wrap" },
           el("button", { onclick: async () => download("guardian_export.json", await api("/export")) }, "export investigations (json)"),
           el("button", { onclick: async () => { await api("/collection", { method: "POST", body: { paused: !h.paused } }); toast(h.paused ? "resumed" : "paused"); draw(); } }, h.paused ? "resume collection" : "pause collection"),
-          el("button", { class: "danger", onclick: async () => { if (prompt("This deletes all local events, detections and incidents. Type DELETE to confirm:") !== "DELETE") return; await api("/data", { method: "DELETE", body: { confirm: "DELETE" } }); toast("local telemetry deleted"); } }, "delete local data…")),
+          el("button", { class: "danger", onclick: async () => {
+            confirmDialog({
+              title: "Wipe All Local Telemetry",
+              message: "This will permanently delete all raw events, detections, snapshots, network flows, and incident records from local storage. The database schema and settings will be preserved.",
+              confirmPrompt: "Type DELETE in capital letters to confirm:",
+              placeholder: "DELETE",
+              onConfirm: async (val) => {
+                if (val !== "DELETE") {
+                  toast("Wipe aborted: confirmation text did not match DELETE", "high");
+                  return;
+                }
+                try {
+                  await api("/data", { method: "DELETE", body: { confirm: "DELETE" } });
+                  toast("Local telemetry deleted cleanly", "low");
+                  draw();
+                } catch (e) {
+                  toast(e.message, "high");
+                }
+              }
+            });
+          } }, "delete local data…")),
         el("h3", { style: "margin-top:14px" }, `Audit log  ${au.chain_ok ? "(hash chain verified ✔)" : "(CHAIN BROKEN ✖)"}`),
         table([{ label: "TIME", render: r => fmt.datetime(r.ts) }, { k: "actor", label: "ACTOR" }, { k: "action", label: "ACTION" }, { label: "TARGET", render: r => fmt.short(r.target, 40) }, { k: "result", label: "RESULT" }], au.items.slice(0, 15)),
         el("div", { class: "dim", style: "margin-top:12px" }, `Smart OS Guardian ${h.version} · API loopback only · session token rotates at each start · data: ${h.db.path}`)));

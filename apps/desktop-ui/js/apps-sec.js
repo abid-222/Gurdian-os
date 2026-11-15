@@ -37,7 +37,24 @@ G.apps.security = {
           el("ol", { style: "margin:0;padding-left:20px" }, (i.steps || []).map(s => el("li", {}, s))),
           el("div", { style: "margin-top:12px;display:flex;gap:8px;flex-wrap:wrap" },
             el("button", { class: "primary", disabled: i.status !== "open", onclick: async () => { await api(`/alerts/${id}/acknowledge`, { method: "POST" }); toast("acknowledged"); select(id); } }, "acknowledge"),
-            el("button", { disabled: i.status === "dismissed", onclick: async () => { const reason = prompt("Reason for dismissing (recorded in the audit log):"); if (!reason || reason.length < 3) return; await api(`/alerts/${id}/dismiss`, { method: "POST", body: { reason } }); select(id); } }, "dismiss…"),
+            el("button", { disabled: i.status === "dismissed", onclick: async () => {
+              confirmDialog({
+                title: "Dismiss Incident",
+                message: `Dismiss incident ${i.incident_id} (${i.title}). This decision will be permanently committed to the tamper-evident audit log.`,
+                confirmPrompt: "Reason for dismissal (minimum 3 characters):",
+                placeholder: "e.g. Verified harmless internal test / known false positive",
+                onConfirm: async (reason) => {
+                  if (!reason || reason.length < 3) return;
+                  try {
+                    await api(`/alerts/${id}/dismiss`, { method: "POST", body: { reason } });
+                    toast("Incident dismissed", "low");
+                    select(id);
+                  } catch (e) {
+                    toast(e.message, "high");
+                  }
+                }
+              });
+            } }, "dismiss…"),
             el("button", { onclick: async () => { const r = await fetch(`/api/v1/alerts/${id}/export`, { headers: { "X-Guardian-Token": G.token } }); if (r.ok) download(`${id}.json`, await r.json()); else toast("export failed", "high"); } }, "export investigation"),
             i.process_key && i.process_name ? el("button", { onclick: () => respond("terminate", i.process_key, i.process_name, () => select(id)) }, "terminate process…") : null, i.process_key && i.process_name ? el("button", { onclick: () => respond("quarantine", i.process_key, i.process_name, () => select(id)) }, "quarantine file…") : null),
           el("h3", { style: "margin-top:12px" }, "Investigation notes"),
