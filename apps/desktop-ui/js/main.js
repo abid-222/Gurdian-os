@@ -57,7 +57,7 @@
       else if (h.degraded.length) ban.append(el("span", { class: "bn", title: h.degraded.map(k => k + ": " + h.sources[k].reason).join("\n") }, "⚠ degraded sensors: " + h.degraded.join(", ")));
       else if (h.queue.state !== "ok") ban.append(el("span", { class: "bn" }, `⚠ event queue ${h.queue.state} (${h.queue.fill_pct}%) — dropped ${h.queue.dropped}`));
       const R = $("#tmuxR"); clear(R);
-      R.append(el("span", { class: crit ? "bad" : "" }, `inc:${crit}`), ` | q:${h.queue.fill_pct}% drop:${h.queue.dropped} | `, h.model.loaded ? "model:on" : "model:none", " | ", el("span", { class: h.status === "ok" ? "" : "warn" }, h.status), " | ", new Date().toLocaleTimeString([], { hour12: false }));
+      R.append(el("span", { class: crit ? "bad" : "" }, `inc:${crit}`), ` | q:${h.queue.fill_pct}% drop:${h.queue.dropped} | `, h.model.loaded ? "model:on" : "rules:E2-E6", " | ", el("span", { class: h.status === "ok" ? "" : "warn" }, h.status), " | ", new Date().toLocaleTimeString([], { hour12: false }));
       const c = $("#conky"); const hist = (await api("/system/history")).samples, last = hist[hist.length - 1] || {};
       const bar_ = p => "█".repeat(Math.round((p || 0) / 10)).padEnd(10, "░");
       c.textContent = ""; c.append(el("b", {}, `${h.hostname}`), `\n${h.os} · ${h.architecture}\nuptime ${fmt.dur(last.uptime || h.uptime_s)}\n`, el("b", {}, "CPU "), `${bar_(last.cpu)} ${(last.cpu || 0).toFixed(0)}%\n`, el("b", {}, "RAM "), `${bar_(last.mem)} ${(last.mem || 0).toFixed(0)}%\n`, el("b", {}, "DSK "), `${bar_(last.disk)} ${(last.disk || 0).toFixed(0)}%\n`, el("b", {}, "NET "), `${s.connection_count} conns · ${s.process_count} procs`);
@@ -68,7 +68,7 @@
   const pal = { items: [], idx: 0 };
   function palItems(q) {
     const apps = DOCK.map(id => ({ label: "open " + G.apps[id].name, hint: "app", run: () => WM.open(id) }));
-    const cmds = ["status", "sources", "system", "processes --top 20", "alerts --recent", "timeline --hours 2", "models", "privacy", "help"].map(c => ({ label: "$ " + c, hint: "guardian", run: () => { const r = WM.open("terminal"); setTimeout(() => r.inst.run && r.inst.run(c), 60); } }));
+    const cmds = ["status", "sources", "system", "processes --top 20", "pstree", "threads", "alerts --recent", "timeline --hours 2", "models", "privacy", "help"].map(c => ({ label: "$ " + c, hint: "guardian", run: () => { const r = WM.open("terminal"); setTimeout(() => r.inst.run && r.inst.run(c), 60); } }));
     const misc = [{ label: "tile windows", hint: "wm", run: () => WM.tile() }, { label: "toggle light/dark theme", hint: "ui", run: () => $("#themeBtn").click() }];
     let all = [...apps, ...cmds, ...misc]; q = q.toLowerCase();
     if (q) { all = all.filter(i => q.split(" ").every(w => i.label.toLowerCase().includes(w))); if (!all.length || q.split(" ")[0] === "scan") all.push({ label: "$ " + q, hint: "run in terminal", run: () => { const r = WM.open("terminal"); setTimeout(() => r.inst.run && r.inst.run(q), 60); } }); }

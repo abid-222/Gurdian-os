@@ -56,6 +56,7 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/*.corrupt-*.db
+data/*.bak*
 data/logs/*.log
 data/shell/*
 !data/.gitkeep

@@ -15,5 +15,5 @@ call .venv\Scripts\python -m pytest -q tests
 call .venv\Scripts\python -c "import sys; sys.path.insert(0,'agent/python-agent'); from guardian import selfcheck; sys.exit(selfcheck.main())"
 echo.
 echo Done. Start with run.bat   (run_admin.bat for Security log + full process details)
-echo Next: put a dataset in datasets\ and press Train in Model Lab. Optional: autostart_install.bat, deployment\installer\install_sysmon.ps1 (admin)
+echo Next: start with run.bat. Optional: check.bat, docs\OS_CONCEPTS.md
 pause
