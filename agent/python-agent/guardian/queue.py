@@ -46,7 +46,7 @@ class EventQueue:
             out = []
             while self.q and len(out) < max_n:
                 e, size = self.q.popleft()
-                self.bytes -= size
+                self.bytes = max(0, self.bytes - size)
                 out.append(e)
             return out
 

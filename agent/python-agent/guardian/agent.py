@@ -116,8 +116,35 @@ class Agent:
     def stop(self):
         self.stop_flag.set()
         for c in self.collectors:
-            c.stop()
+            try:
+                c.stop()
+            except Exception:
+                pass
+        for c in self.collectors:
+            try:
+                c.join(timeout=1.0)
+            except Exception:
+                pass
         self.enricher.running = False
+        try:
+            self.enricher.thread.join(timeout=1.0)
+        except Exception:
+            pass
+        # Wake up any threads waiting on queue condition variables
+        try:
+            with self.queue.cv:
+                self.queue.cv.notify_all()
+        except Exception:
+            pass
+        for t in self.threads:
+            try:
+                t.join(timeout=1.0)
+            except Exception:
+                pass
+        try:
+            self.db.close()
+        except Exception:
+            pass
 
     # ---- emit ------------------------------------------------------------------------
     def emit(self, source, event_type, *, inline=False, **kw):

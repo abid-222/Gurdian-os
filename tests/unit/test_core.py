@@ -65,3 +65,27 @@ def test_audit_chain(agent):
 def test_migration_and_wal(agent):
     assert agent.db.one("PRAGMA journal_mode")["journal_mode"] == "wal"
     assert agent.db.one("SELECT version FROM schema_migrations")["version"] == 1
+
+
+def test_agent_graceful_stop_and_wal_truncation(tmp_path):
+    from guardian.agent import Agent
+    db_file = tmp_path / "stop_test.db"
+    a = Agent(db_path=db_file, start_collectors=False)
+    a.db.execute("CREATE TABLE t(x)")
+    a.db.execute("INSERT INTO t VALUES(1)")
+    assert a.db.conn is not None
+    a.stop()
+    assert a.stop_flag.is_set()
+    # verify db can be reopened cleanly
+    a2 = Agent(db_path=db_file, start_collectors=False)
+    assert a2.db.one("SELECT count(*) c FROM t")["c"] == 1
+    a2.stop()
+
+
+def test_quarantine_path_traversal_refused(agent, tmp_path):
+    from guardian import response
+    import pytest
+    with pytest.raises(response.ActionError, match="quarantine item not found"):
+        response.restore(agent, "../evil")
+    with pytest.raises(response.ActionError, match="quarantine item not found"):
+        response.restore(agent, "nonexistent123")

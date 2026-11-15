@@ -167,6 +167,19 @@ class Database:
         except OSError:
             return 0
 
+    def close(self):
+        """Close connection cleanly, checkpointing and truncating the WAL journal."""
+        with self.lock:
+            try:
+                if hasattr(self, "conn") and self.conn:
+                    try:
+                        self.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+                    except Exception:
+                        pass
+                    self.conn.close()
+            except Exception:
+                pass
+
     def wipe_telemetry(self):
         for t in ("events", "process_snapshots", "network_flows", "detections", "incidents", "incident_notes"):
             self.execute(f"DELETE FROM {t}")
