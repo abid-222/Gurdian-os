@@ -1,0 +1,7 @@
+# Training + live scoring of the PE model. Installed by install.bat, or automatically by the Train button in Model Lab.
+lightgbm>=4.5
+scikit-learn>=1.5
+numpy>=1.26
+pefile>=2024.8.26
+signify==0.7.1
+oscrypto @ git+https://github.com/wbond/oscrypto.git ; sys_platform != "win32"

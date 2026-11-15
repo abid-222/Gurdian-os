@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Guardian event envelope v1",
+  "type": "object",
+  "required": ["event_id", "schema_version", "host_id", "timestamp_utc", "source", "event_type"],
+  "properties": {
+    "event_id": {"type": "string"},
+    "schema_version": {"const": 1},
+    "host_id": {"type": "string"},
+    "timestamp_utc": {"type": "string"},
+    "source": {"enum": ["sysmon", "etw", "windows_event", "psutil", "registry", "guardian", "simulation"]},
+    "event_type": {"type": "string"},
+    "process": {"type": "object", "properties": {
+      "pid": {"type": "integer"}, "parent_pid": {"type": "integer"}, "process_guid": {"type": "string"},
+      "image_path": {"type": "string"}, "sha256": {"type": "string"}}},
+    "attributes": {"type": "object"},
+    "privacy_flags": {"type": "array", "items": {"type": "string"}}
+  }
+}

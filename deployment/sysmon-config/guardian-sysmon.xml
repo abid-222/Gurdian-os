@@ -1,0 +1,24 @@
+<!-- Minimal, selective Sysmon config for Smart OS Guardian (review against Microsoft's current Sysmon docs before use).
+     Install (admin):  sysmon64 -accepteula -i guardian-sysmon.xml      Update:  sysmon64 -c guardian-sysmon.xml
+     Sysmon is optional. Event 3 and 7 are noisy and therefore filtered/omitted here. -->
+<Sysmon schemaversion="4.90">
+  <EventFiltering>
+    <RuleGroup name="proc" groupRelation="or"><ProcessCreate onmatch="exclude"/></RuleGroup>
+    <RuleGroup name="net" groupRelation="or">
+      <NetworkConnect onmatch="include">
+        <Image condition="contains any">\AppData\;\Temp\;\Downloads\;\Users\Public\</Image>
+      </NetworkConnect>
+    </RuleGroup>
+    <RuleGroup name="file" groupRelation="or">
+      <FileCreate onmatch="include">
+        <TargetFilename condition="contains any">.exe;.dll;.scr;.ps1;.vbs;.js;.hta</TargetFilename>
+      </FileCreate>
+    </RuleGroup>
+    <RuleGroup name="reg" groupRelation="or">
+      <RegistryEvent onmatch="include">
+        <TargetObject condition="contains">CurrentVersion\Run</TargetObject>
+      </RegistryEvent>
+    </RuleGroup>
+    <RuleGroup name="dns" groupRelation="or"><DnsQuery onmatch="exclude"><QueryName condition="end with">.microsoft.com</QueryName></DnsQuery></RuleGroup>
+  </EventFiltering>
+</Sysmon>

@@ -1,0 +1,31 @@
+{
+  "policy_version": "1.0.0",
+  "note": "Starting values to be tuned on validation scenarios, not on the final test set (proposal 14.3).",
+  "join_window_seconds": 120,
+  "incident_merge_window_seconds": 600,
+  "pe_high_threshold": 0.90,
+  "classes": {
+    "E1": {"name": "Calibrated PE score",        "strength": "strong", "weight": 3},
+    "E2": {"name": "Parent-child rule",          "strength": "medium", "weight": 2},
+    "E3": {"name": "Drop-and-execute",           "strength": "medium", "weight": 2},
+    "E4": {"name": "Signer / path context",      "strength": "weak",   "weight": 1},
+    "E5": {"name": "Persistence change",         "strength": "medium", "weight": 2},
+    "E6": {"name": "Outbound connection",        "strength": "weak",   "weight": 1}
+  },
+  "drop_and_execute_seconds": 60,
+  "outbound_after_start_seconds": 120,
+  "validated_high_precision_rules": [],
+  "office_parents": ["winword.exe","excel.exe","powerpnt.exe","outlook.exe","onenote.exe","msaccess.exe"],
+  "script_host_parents": ["wscript.exe","cscript.exe","mshta.exe"],
+  "medium_requires_non_weak": true,
+  "shell_children": ["cmd.exe","powershell.exe","pwsh.exe","wscript.exe","cscript.exe","mshta.exe","rundll32.exe","regsvr32.exe","certutil.exe","bitsadmin.exe"],
+  "user_writable_markers": ["\\appdata\\", "\\temp\\", "\\downloads\\", "\\users\\public\\", "\\programdata\\", "/tmp/", "/downloads/"],
+  "trusted_roots": ["c:\\windows\\", "c:\\program files\\", "c:\\program files (x86)\\"],
+  "observations": {
+    "log_cleared":        {"severity": "medium", "title": "Windows event log was cleared"},
+    "sysmon_state":       {"severity": "low",    "title": "Sysmon service state changed"},
+    "sysmon_config":      {"severity": "low",    "title": "Sysmon configuration changed"},
+    "defender_detection": {"severity": "medium", "title": "Microsoft Defender reported a detection (observation)"},
+    "startup_item_added": {"severity": "informational", "title": "New startup (Run key) item"}
+  }
+}

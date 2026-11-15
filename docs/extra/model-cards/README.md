@@ -1,0 +1,1 @@
+Model cards are written by `ai/malware-pe/train.py` next to each package (`ai/model-registry/malware-pe/<version>/model_card.json`) and as `malware-pe-<version>.md` here. No model ships in this zip: install one with ai/malware-pe/README.md.

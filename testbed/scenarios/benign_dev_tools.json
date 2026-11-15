@@ -1,0 +1,3 @@
+{"scenario_id": "benign_dev_tools", "labels_from": "manifest, never from the detector", "safe": true, "executes_real_code": false,
+ "note": "Synthetic replay via POST /api/v1/simulate/benign_dev_tools. For the real VM testbed use non-destructive Atomic Red Team tests only, in a disposable snapshot.",
+ "see": "agent/python-agent/guardian/simulate.py"}

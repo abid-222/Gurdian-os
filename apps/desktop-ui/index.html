@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>guardian — Smart OS Guardian</title>
+<link rel="stylesheet" href="css/shell.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f1418'/%3E%3Cpath d='M16 4 6 8v8c0 6 4 10 10 12 6-2 10-6 10-12V8z' fill='none' stroke='%232dd4bf' stroke-width='2'/%3E%3Cpath d='M11 15l4 4 7-8' fill='none' stroke='%232dd4bf' stroke-width='2'/%3E%3C/svg%3E">
+</head>
+<body>
+<div id="boot" aria-live="polite"></div>
+<div id="lock" hidden>
+  <pre class="lock-box">
+<b>guardian: authentication required</b>
+The session token was not supplied. Start Guardian with run.bat
+(it opens this window with the token) or paste the token below.
+<input id="tokenIn" placeholder="session token" autocomplete="off" spellcheck="false"><button id="tokenBtn">unlock</button></pre>
+</div>
+<div id="shell" hidden>
+  <header id="panel" role="banner">
+    <button id="menuBtn" class="p-btn" title="Applications (Ctrl+K)" aria-label="Applications menu">◉ Guardian</button>
+    <nav id="workspaces" aria-label="Open windows"></nav>
+    <div id="banner" role="status"></div>
+    <div id="clock" aria-label="Clock"></div>
+    <div id="tray">
+      <span id="tCpu" title="CPU">cpu --</span><span id="tMem" title="Memory">mem --</span>
+      <span id="tSrc" title="Telemetry sources">src --</span><span id="tUser"></span>
+      <button id="themeBtn" class="p-btn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+  <aside id="dock" aria-label="Application dock"></aside>
+  <main id="desktop">
+    <pre id="conky" aria-hidden="true"></pre>
+    <div id="windows"></div>
+  </main>
+  <footer id="tmux" role="contentinfo"><span id="tmuxL"></span><span id="tmuxR"></span></footer>
+  <div id="palette" hidden role="dialog" aria-label="Command palette">
+    <div class="pal-box"><input id="palIn" placeholder="run: app or guardian command…" autocomplete="off" spellcheck="false"><ul id="palList"></ul></div>
+  </div>
+  <div id="toasts" aria-live="polite"></div>
+</div>
+<script src="js/core.js"></script>
+<script src="js/wm.js"></script>
+<script src="js/apps-home.js"></script>
+<script src="js/apps-terminal.js"></script>
+<script src="js/apps-proc.js"></script>
+<script src="js/apps-sec.js"></script>
+<script src="js/apps-misc.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
