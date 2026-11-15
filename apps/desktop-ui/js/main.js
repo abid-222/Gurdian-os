@@ -71,6 +71,7 @@
   }
 
   function start(h) {
+    palClose();
     const userEl = $("#tUser");
     if (userEl) userEl.textContent = `guardian@${h.hostname.toLowerCase()}`;
 
@@ -232,16 +233,27 @@
   }
 
   function palOpen() {
-    $("#palette").hidden = false;
+    const palEl = $("#palette");
+    if (!palEl) return;
+    palEl.hidden = false;
+    palEl.classList.remove("hidden");
+    palEl.style.setProperty("display", "grid", "important");
     $("#palIn").value = "";
     pal.items = palItems("");
     pal.idx = 0;
     palRender();
-    $("#palIn").focus();
+    setTimeout(() => {
+      const inp = $("#palIn");
+      if (inp) inp.focus();
+    }, 30);
   }
 
   function palClose() {
-    $("#palette").hidden = true;
+    const palEl = $("#palette");
+    if (!palEl) return;
+    palEl.hidden = true;
+    palEl.classList.add("hidden");
+    palEl.style.setProperty("display", "none", "important");
     try { $("#palIn").blur(); } catch (_) {}
   }
   function palRun() { const it = pal.items[pal.idx]; palClose(); it && it.run(); }
@@ -251,7 +263,7 @@
     if (e.key === "ArrowDown") { pal.idx = Math.min(pal.items.length - 1, pal.idx + 1); palRender(); e.preventDefault(); }
     else if (e.key === "ArrowUp") { pal.idx = Math.max(0, pal.idx - 1); palRender(); e.preventDefault(); }
     else if (e.key === "Enter") palRun();
-    else if (e.key === "Escape" || e.code === "Escape") { e.preventDefault(); e.stopPropagation(); palClose(); }
+    else if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) { e.preventDefault(); e.stopPropagation(); palClose(); }
   });
   $("#palette").addEventListener("mousedown", e => {
     if (e.target.id === "palette" || !e.target.closest(".pal-box")) palClose();
@@ -282,11 +294,10 @@
   // Priority 1 → Close Command Palette
   // Priority 2 → Close top NON-HOME window (home is permanent backdrop, never ESC-close)
   function handleEscape(e) {
-    if (e) { e.preventDefault(); e.stopPropagation(); }
-
-    // 1. Close Command Palette first
+    // 1. Close Command Palette first if visible
     const palEl = $("#palette");
-    if (palEl && !palEl.hidden) {
+    if (palEl && (!palEl.hidden || palEl.style.display !== "none" || !palEl.classList.contains("hidden"))) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
       palClose();
       return true;
     }
@@ -298,6 +309,7 @@
         const topId = WM.order[i];
         if (topId === "home") continue; // never ESC-close home
         if (topId && WM.wins && WM.wins.has(topId)) {
+          if (e) { e.preventDefault(); e.stopPropagation(); }
           WM.close(topId);
           return true;
         }

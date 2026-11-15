@@ -1352,6 +1352,11 @@ h3 {
   color: var(--fg-dim);
 }
 
+/* Base hidden utility */
+[hidden], .hidden {
+  display: none !important;
+}
+
 /* Command Palette (macOS Spotlight / Linear Style) */
 #palette {
   position: fixed;
@@ -1364,6 +1369,12 @@ h3 {
   align-content: start;
   padding-top: 14vh;
   z-index: 120;
+}
+#palette[hidden],
+#palette.hidden {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 .pal-box {
   width: min(600px, 92vw);
