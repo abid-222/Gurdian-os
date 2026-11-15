@@ -351,6 +351,31 @@ def create_app(agent, token: str, port: int | None = None, token_issued: float |
         agent.db.audit("user", "scan", req.path[:200])
         return res
 
+    @app.post(P + "/scan/upload")
+    async def scan_upload(request: Request):
+        filename = request.headers.get("x-filename") or "inspected_binary.bin"
+        safe_name = os.path.basename(filename)
+        body = await request.body()
+        if not body:
+            raise HTTPException(400, "empty file body")
+        if len(body) > 64 * 1024 * 1024:
+            raise HTTPException(413, "file exceeds 64MB inspection limit")
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix="_" + safe_name, delete=False) as tmp:
+            tmp.write(body)
+            tmp_path = tmp.name
+        try:
+            res = pe.scan_file(tmp_path, agent.model)
+            if "file" in res:
+                res["file"]["path"] = f"[Local File: {safe_name}]"
+            agent.db.audit("user", "scan_upload", safe_name[:200])
+            return res
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+
     @app.post(P + "/terminal")
     def terminal(req: TermReq):
         return commands.run(agent, req.line)

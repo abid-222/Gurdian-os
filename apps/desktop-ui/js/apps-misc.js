@@ -1,127 +1,243 @@
 "use strict";
 
 G.apps.models = {
-  name: "File Scanner", short: "scan", icon: "model", w: 860, h: 600, title: h => `Guardian OS — File Scanner (${h})`,
+  name: "File Scanner", short: "scan", icon: "model", w: 880, h: 660, title: h => `Guardian OS — File Scanner (${h})`,
   mount(body) {
     let alive = true;
     const render = async () => {
-      const m = await api("/models");
-      const a = m.active;
-      const out = el("div", { class: "scanout", style: "margin-top:8px" });
-      const pathIn = el("input", { placeholder: "Full path of executable or file to inspect (e.g. C:\\Windows\\explorer.exe)", style: "width:75%", "aria-label": "file path" });
+      const m = await api("/models").catch(() => ({}));
+      const a = m && m.active;
+      const out = el("div", { class: "scanout", style: "margin-top:12px" });
+      const pathIn = el("input", {
+        placeholder: "File path or executable name (e.g. notepad.exe or C:\\Windows\\explorer.exe)",
+        style: "flex:1;min-width:240px;padding:8px 12px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:13px;outline:none",
+        "aria-label": "file path"
+      });
+
+      const fileInput = el("input", {
+        type: "file",
+        style: "display:none",
+        onchange: async e => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          pathIn.value = file.name;
+          scanUploadedFile(file);
+        }
+      });
+
+      const scanUploadedFile = async file => {
+        clear(out).append(el("div", { class: "dim", style: "padding:12px" }, `🔍 Inspecting uploaded binary: ${file.name} (${fmt.bytes(file.size)})...`));
+        try {
+          const res = await fetch("/api/v1/scan/upload", {
+            method: "POST",
+            headers: {
+              "X-Guardian-Token": G.token,
+              "X-Filename": file.name,
+              "Content-Type": "application/octet-stream"
+            },
+            body: file
+          });
+          if (!res.ok) {
+            let msg = res.statusText;
+            try { msg = (await res.json()).detail || msg; } catch(_) {}
+            throw new Error(msg);
+          }
+          const r = await res.json();
+          renderScanResult(r, file.name);
+        } catch (err) {
+          clear(out).append(el("div", { class: "pad st-bad" }, "Inspection error: " + err.message));
+        }
+      };
 
       const scan = async () => {
-        const p = pathIn.value.trim().replace(/^"|"$/g, ""); if (!p) return;
-        clear(out).append(el("div", { class: "dim" }, "scanning file statically..."));
+        const p = pathIn.value.trim().replace(/^"|"$/g, "");
+        if (!p) {
+          toast("Please enter a path/filename or click 'Browse File' to select a binary", "info");
+          return;
+        }
+        clear(out).append(el("div", { class: "dim", style: "padding:12px" }, `🔍 Scanning file statically: ${p}...`));
         try {
-          const r = await api("/scan", { method: "POST", body: { path: p } }), f = r.file;
-          if (!f.exists) { clear(out).append(el("div", { class: "note" }, "not a file: " + p)); return; }
-          const rows = [
-            ["file", f.path],
-            ["sha256", f.sha256],
-            ["size", fmt.bytes(f.size)],
-            ["PE format", f.is_pe ? "valid PE header (MZ)" : "not a PE file"],
-            ["signer", f.signer || "n/a"],
-            ["origin (Mark of the Web)", f.origin ? `${f.origin.zone || "?"}${f.origin.origin_host ? " - " + f.origin.origin_host : ""}` : "none / local file"],
-            ["imports", (f.imports || []).slice(0, 12).join(", ") || "none"],
-            ["high-entropy sections", (f.high_entropy_sections || []).join(", ") || "none"],
-            ["W+X sections", (f.wx_sections || []).join(", ") || "none"],
-            ["E1 model score", r.model ? `score ${r.model.score} (threshold ${r.model.threshold}, inference ${r.model.inference_time_ms} ms)` : "Not installed (optional) — running rules E2–E6"],
-            ["execution safety", "never executed (static OS inspection only)"]
-          ];
-          if (r.model && r.model.top_features && r.model.top_features.length) {
-            rows.splice(10, 0, ["SHAP Attribution", r.model.top_features.map(x => `${x.feature} (${x.impact > 0 ? "+" : ""}${x.impact})`).join(" • ")]);
+          const r = await api("/scan", { method: "POST", body: { path: p } });
+          renderScanResult(r, p);
+        } catch (e) {
+          clear(out).append(el("div", { class: "pad st-bad" }, "Inspection error: " + e.message));
+        }
+      };
+
+      const renderScanResult = (r, origName) => {
+        const f = r.file || {};
+        if (!f.exists) {
+          clear(out).append(el("div", { class: "note", style: "padding:12px;margin:8px 0" },
+            el("div", { style: "font-weight:600;margin-bottom:4px;color:var(--warn)" }, `File Not Found: "${origName}"`),
+            el("div", { class: "dim", style: "font-size:12px" }, "Please verify the absolute file path, or click '📂 Browse File…' below to select any binary directly from your computer.")
+          ));
+          return;
+        }
+
+        const rows = [
+          ["File Path", f.path],
+          ["SHA-256", f.sha256],
+          ["File Size", fmt.bytes(f.size)],
+          ["PE Executable", f.is_pe ? "Valid PE header (MZ signed/unsigned binary)" : "Not a standard Windows PE executable"],
+          ["Digital Signer", f.signer || "Unsigned / Unknown"],
+          ["Origin (Zone.ID)", f.origin ? `${f.origin.zone || "?"}${f.origin.origin_host ? " (" + f.origin.origin_host + ")" : ""}` : "Local Workstation / Clean Source"],
+          ["API Imports", (f.imports || []).slice(0, 15).join(", ") || "None recorded"],
+          ["High Entropy Sections", (f.high_entropy_sections || []).join(", ") || "None (Packed: No)"],
+          ["W+X Sections", (f.wx_sections || []).join(", ") || "None (Clean: Yes)"],
+          ["E1 AI Model Score", r.model ? `Score ${r.model.score} (Threshold ${r.model.threshold}, Inference ${r.model.inference_time_ms} ms)` : "Rules E2–E6 Active (Zero ML dependency)"],
+          ["Execution Policy", "100% Static Inspection (Never Detonated or Executed)"]
+        ];
+
+        const allowBtn = f.sha256 ? el("button", {
+          class: "btn-subtle xs emerald",
+          style: "margin-left:8px",
+          onclick: () => {
+            confirmDialog({
+              title: "Allowlist Binary SHA-256",
+              message: `Add hash ${f.sha256} to the trusted allowlist to suppress future detection alerts?`,
+              confirmPrompt: "Reason for allowlisting:",
+              placeholder: "Approved internal tool",
+              onConfirm: async reason => {
+                try {
+                  await api("/allowlist", { method: "POST", body: { kind: "sha256", value: f.sha256, reason: reason || "User approved" } });
+                  toast("SHA-256 hash added to allowlist", "low");
+                } catch(e) { toast(e.message, "high"); }
+              }
+            });
           }
+        }, "🛡 Allowlist Hash") : null;
 
-          const shapCard = (r.model && r.model.top_features && r.model.top_features.length) ? el("div", {
-            class: "card",
-            style: "margin-top:10px;border-left:3px solid #38bdf8;background:rgba(56,189,248,0.06)"
-          },
-            el("h4", { style: "display:flex;align-items:center;gap:6px;color:#38bdf8;margin:0 0 8px 0" },
-              renderIcon("shield-alert", "cyan", "xs"),
-              el("span", {}, "AI Feature Attribution & Explainability (LightGBM SHAP Values):")
-            ),
-            el("div", { class: "dim", style: "font-size:12px;margin-bottom:8px" },
-              "Detailed mathematical SHAP attribution explaining why the ML model scored this PE binary:"
-            ),
-            el("div", { style: "display:flex;flex-direction:column;gap:6px" },
-              ...r.model.top_features.map((feat, idx) => el("div", {
-                style: "display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px"
-              },
-                el("div", { style: "display:flex;align-items:center;gap:8px" },
-                  el("span", { class: "device-chip", style: "font-size:10px;padding:1px 6px" }, `#${idx + 1}`),
-                  el("span", { style: "font-weight:600;font-size:13px" }, feat.feature)
+        const shapCard = (r.model && r.model.top_features && r.model.top_features.length) ? el("div", {
+          class: "card",
+          style: "margin-top:12px;border-left:3px solid #38bdf8;background:rgba(56,189,248,0.06);padding:14px"
+        },
+          el("h4", { style: "display:flex;align-items:center;gap:6px;color:#38bdf8;margin:0 0 8px 0" },
+            renderIcon("shield-alert", "cyan", "xs"),
+            el("span", {}, "AI Feature Attribution & Explainability (LightGBM SHAP Values):")
+          ),
+          el("div", { class: "dim", style: "font-size:12px;margin-bottom:8px" },
+            "Detailed mathematical SHAP attribution explaining why the ML model scored this PE binary:"
+          ),
+          el("div", { style: "display:flex;flex-direction:column;gap:6px" },
+            ...r.model.top_features.map((feat, idx) => el("div", {
+              style: "display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px"
+            },
+              el("div", { style: "display:flex;align-items:center;gap:8px" },
+                el("span", { class: "device-chip", style: "font-size:10px;padding:1px 6px" }, `#${idx + 1}`),
+                el("span", { style: "font-weight:600;font-size:13px" }, feat.feature)
+              ),
+              el("div", { style: "display:flex;align-items:center;gap:8px" },
+                el("span", { class: feat.impact > 0 ? "st-bad" : "st-ok", style: "font-weight:700;font-family:var(--font-mono)" },
+                  (feat.impact > 0 ? "+" : "") + feat.impact
                 ),
-                el("div", { style: "display:flex;align-items:center;gap:8px" },
-                  el("span", { class: feat.impact > 0 ? "st-bad" : "st-ok", style: "font-weight:700;font-family:var(--font-mono)" },
-                    (feat.impact > 0 ? "+" : "") + feat.impact
-                  ),
-                  el("span", { class: "badge " + (feat.impact > 0 ? "rose" : "emerald"), style: "font-size:10px" },
-                    feat.impact > 0 ? "Malicious Factor" : "Benign Factor"
-                  )
+                el("span", { class: "badge " + (feat.impact > 0 ? "rose" : "emerald"), style: "font-size:10px" },
+                  feat.impact > 0 ? "Malicious Factor" : "Benign Factor"
                 )
-              ))
-            )
-          ) : null;
+              )
+            ))
+          )
+        ) : null;
 
-          clear(out).append(
-            kv(rows),
-            shapCard,
-            f.sections && f.sections.length ? el("div", { style: "margin-top:8px" },
-              el("div", { style: "font-weight:600;margin-bottom:3px;color:var(--accent)" }, "PE Header Sections:"),
-              table([
-                { k: "name", label: "SECTION" },
-                { label: "VSIZE", cls: "r", render: s => fmt.bytes(s.vsize) },
-                { label: "RSIZE", cls: "r", render: s => fmt.bytes(s.rsize) },
-                { label: "ENTROPY", cls: "r", render: s => (s.entropy || 0).toFixed(2) },
-                { label: "FLAGS", render: s => (s.exec ? "EXEC " : "") + (s.write ? "WRITE" : "") }
-              ], f.sections)
-            ) : null,
-            r.warning ? el("div", { class: "note" }, r.warning) : null
-          );
-        } catch (e) { clear(out).append(el("div", { class: "note" }, e.message)); }
+        const sectionsBox = f.sections && f.sections.length ? el("div", { style: "margin-top:14px" },
+          el("h5", { style: "margin:0 0 6px 0;font-size:13px;color:var(--primary)" }, "PE Header Section Breakdown:"),
+          table([
+            { k: "name", label: "SECTION" },
+            { label: "VIRTUAL SIZE", cls: "r", render: s => fmt.bytes(s.vsize) },
+            { label: "RAW SIZE", cls: "r", render: s => fmt.bytes(s.rsize) },
+            { label: "SHANNON ENTROPY", cls: "r", render: s => (s.entropy || 0).toFixed(2) },
+            { label: "PERMISSIONS", render: s => el("span", { class: "badge " + (s.exec && s.write ? "rose" : "slate"), style: "font-size:10px" }, (s.exec ? "EXEC " : "") + (s.write ? "WRITE" : "READ")) }
+          ], f.sections)
+        ) : null;
+
+        clear(out).append(
+          kv(rows),
+          allowBtn ? el("div", { style: "margin-top:8px" }, allowBtn) : null,
+          shapCard,
+          sectionsBox,
+          r.warning ? el("div", { class: "note", style: "margin-top:8px" }, r.warning) : null
+        );
       };
 
       pathIn.addEventListener("keydown", e => { if (e.key === "Enter") scan(); });
 
       const quickSamples = [
-        "C:\\Windows\\explorer.exe",
-        "C:\\Windows\\System32\\notepad.exe",
-        "C:\\Windows\\System32\\cmd.exe",
-        "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+        { label: "explorer.exe", path: "C:\\Windows\\explorer.exe" },
+        { label: "notepad.exe", path: "notepad.exe" },
+        { label: "cmd.exe", path: "cmd.exe" },
+        { label: "powershell.exe", path: "powershell.exe" }
       ];
 
       const sampleButtons = el("div", { style: "display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap" },
         el("span", { class: "dim", style: "font-size:12px" }, "Quick Test Targets:"),
         ...quickSamples.map(target => el("button", {
           class: "btn-subtle xs cyan",
-          style: "font-size:11px;padding:3px 8px;font-family:var(--font-mono)",
-          title: "Scan " + target,
+          style: "font-size:11px;padding:3px 8px;font-family:var(--font-mono);cursor:pointer",
+          title: "Scan " + target.path,
           onclick: () => {
-            pathIn.value = target;
+            pathIn.value = target.path;
             scan();
           }
-        }, target.split("\\").pop()))
+        }, target.label))
       );
 
-      clear(body).append(el("div", { class: "pad" },
-        el("div", { class: "card", style: "padding:16px" },
-          el("div", { style: "display:flex;align-items:center;gap:8px;margin-bottom:6px" },
+      const browseBtn = el("button", {
+        class: "btn-subtle sm cyan",
+        style: "white-space:nowrap;padding:8px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:600",
+        onclick: () => fileInput.click()
+      }, "📂 Browse File…");
+
+      const inspectBtn = el("button", {
+        class: "btn-primary",
+        style: "white-space:nowrap;padding:8px 16px;cursor:pointer;font-weight:600",
+        onclick: scan
+      }, "🔍 Inspect File");
+
+      const dropZone = el("div", {
+        class: "card",
+        style: "padding:16px;border:2px dashed rgba(255,255,255,0.12);transition:border-color 0.2s ease"
+      },
+        el("div", { style: "display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:8px" },
+          el("div", { style: "display:flex;align-items:center;gap:8px" },
             renderIcon("file-search", "cyan", "sm"),
             el("h4", { style: "margin:0;font-size:15px;color:#fff" }, "File Intelligence & Static PE Inspection"),
             el("span", { class: "badge emerald", style: "font-size:10px" }, "Safe: Zero Detonation")
           ),
-          el("div", { class: "dim", style: "margin-bottom:12px;font-size:12.5px;line-height:1.5" },
-            "Files are analyzed strictly via static header parsing — never executed. Extracts SHA-256 cryptographic hash, PE header sections, Shannon entropy, API imports table, Authenticode digital signature, and NTFS Mark-of-the-Web (Zone.Identifier) stream."
-          ),
-          sampleButtons,
-          el("div", { style: "display:flex;gap:8px;align-items:center;margin-top:6px" },
-            pathIn,
-            el("button", { class: "btn-primary", style: "white-space:nowrap;padding:8px 16px;cursor:pointer", onclick: scan }, "🔍 Inspect File")
-          ),
-          out
+          el("span", { class: "dim", style: "font-size:11.5px" }, "Drag & drop any file here")
         ),
+        el("div", { class: "dim", style: "margin-bottom:12px;font-size:12.5px;line-height:1.5" },
+          "Files are analyzed strictly via static header parsing — never executed. Extracts SHA-256 cryptographic hash, PE header sections, Shannon entropy, API imports table, Authenticode digital signature, and NTFS Mark-of-the-Web (Zone.Identifier) stream."
+        ),
+        sampleButtons,
+        fileInput,
+        el("div", { style: "display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap" },
+          pathIn,
+          browseBtn,
+          inspectBtn
+        ),
+        out
+      );
 
+      // Drag and drop listeners
+      dropZone.addEventListener("dragover", e => {
+        e.preventDefault();
+        dropZone.style.borderColor = "var(--primary)";
+      });
+      dropZone.addEventListener("dragleave", e => {
+        e.preventDefault();
+        dropZone.style.borderColor = "rgba(255,255,255,0.12)";
+      });
+      dropZone.addEventListener("drop", e => {
+        e.preventDefault();
+        dropZone.style.borderColor = "rgba(255,255,255,0.12)";
+        const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        if (file) {
+          pathIn.value = file.name;
+          scanUploadedFile(file);
+        }
+      });
+
+      clear(body).append(el("div", { class: "pad" },
+        dropZone,
         el("div", { class: "card", style: "margin-top:14px;padding:14px" },
           el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:var(--primary)" },
             renderIcon("shield-check", "cyan", "xs"),

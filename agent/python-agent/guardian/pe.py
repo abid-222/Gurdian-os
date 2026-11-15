@@ -26,7 +26,26 @@ def entropy(data: bytes) -> float:
 
 def extract_metadata(path: str) -> dict:
     """Light, safe metadata. The EMBER-compatible feature vector is built in ai/malware-pe/features.py."""
+    import shutil
     p = pathlib.Path(path)
+    if not p.is_file():
+        # Smart resolution: check system PATH or standard system directories
+        resolved = shutil.which(path)
+        if resolved and pathlib.Path(resolved).is_file():
+            p = pathlib.Path(resolved)
+        elif config.IS_WINDOWS:
+            sys_root = os.environ.get("SystemRoot", r"C:\Windows")
+            for base in [sys_root, os.path.join(sys_root, "System32"), os.path.join(sys_root, "SysWOW64")]:
+                c1 = pathlib.Path(base) / path
+                if c1.is_file():
+                    p = c1
+                    break
+                if not path.lower().endswith(".exe"):
+                    c2 = pathlib.Path(base) / (path + ".exe")
+                    if c2.is_file():
+                        p = c2
+                        break
+
     out: dict = {"path": str(p), "exists": p.is_file()}
     if not p.is_file():
         return out
