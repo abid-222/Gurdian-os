@@ -26,7 +26,7 @@ G.apps.processes = {
     });
 
     const bars = el("span", { style: "display:flex;align-items:center;gap:10px;font-size:12px;color:var(--fg-dim)" });
-    const mainArea = el("div", { style: "flex:1;display:flex;min-height:0;overflow:hidden;position:relative" });
+    const mainArea = el("div", { class: "edr-wrap" });
 
     // Mode Toggle Buttons
     const btnGraph = el("button", {
@@ -264,44 +264,60 @@ G.apps.processes = {
       canvasContainer.append(canvasInner);
 
       // Draw SVG Connection Curves
+      function getPos(node) {
+        let x = 0, y = 0, el = node;
+        while (el && el !== canvasInner) {
+          x += el.offsetLeft;
+          y += el.offsetTop;
+          el = el.offsetParent;
+        }
+        return {
+          right: x + node.offsetWidth,
+          left: x,
+          midY: y + node.offsetHeight / 2
+        };
+      }
+
       function drawLinks() {
         while (svgLayer.firstChild) svgLayer.removeChild(svgLayer.firstChild);
-        const rectInner = canvasInner.getBoundingClientRect();
-        svgLayer.setAttribute("width", canvasInner.scrollWidth);
-        svgLayer.setAttribute("height", canvasInner.scrollHeight);
+        const w = Math.max(canvasInner.scrollWidth, canvasContainer.clientWidth);
+        const h = Math.max(canvasInner.scrollHeight, canvasContainer.clientHeight);
+        svgLayer.setAttribute("width", w);
+        svgLayer.setAttribute("height", h);
+        svgLayer.style.width = w + "px";
+        svgLayer.style.height = h + "px";
 
         generations.forEach(genProcs => {
           genProcs.forEach(p => {
             const parentNode = nodeElements.get(p.key);
             if (!parentNode) return;
-            const pRect = parentNode.getBoundingClientRect();
-            const px = pRect.right - rectInner.left;
-            const py = pRect.top + pRect.height / 2 - rectInner.top;
+            const pPos = getPos(parentNode);
+            const px = pPos.right;
+            const py = pPos.midY;
 
             const children = kids.get(p.key) || [];
             children.forEach(c => {
               const childNode = nodeElements.get(c.key);
               if (!childNode) return;
-              const cRect = childNode.getBoundingClientRect();
-              const cx = cRect.left - rectInner.left;
-              const cy = cRect.top + cRect.height / 2 - rectInner.top;
+              const cPos = getPos(childNode);
+              const cx = cPos.left;
+              const cy = cPos.midY;
 
               const isHighlighted = (p.key === st.sel || c.key === st.sel);
               const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-              const dx = (cx - px) * 0.5;
+              const dx = Math.max(30, (cx - px) * 0.5);
               const d = `M ${px} ${py} C ${px + dx} ${py}, ${cx - dx} ${cy}, ${cx} ${cy}`;
               path.setAttribute("d", d);
               path.setAttribute("fill", "none");
-              path.setAttribute("stroke", isHighlighted ? (c.incident ? "#f43f5e" : "#38bdf8") : "rgba(255, 255, 255, 0.15)");
+              path.setAttribute("stroke", isHighlighted ? (c.incident ? "#f43f5e" : "#38bdf8") : "rgba(255, 255, 255, 0.2)");
               path.setAttribute("stroke-width", isHighlighted ? "2.5" : "1.5");
-              if (isHighlighted) path.setAttribute("stroke-dasharray", "none");
               svgLayer.append(path);
             });
           });
         });
       }
 
-      setTimeout(drawLinks, 40);
+      setTimeout(drawLinks, 50);
 
       // Right Details Inspector
       const inspector = el("div", { class: "edr-inspector" });
