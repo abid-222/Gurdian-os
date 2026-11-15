@@ -240,7 +240,10 @@
     $("#palIn").focus();
   }
 
-  function palClose() { $("#palette").hidden = true; }
+  function palClose() {
+    $("#palette").hidden = true;
+    try { $("#palIn").blur(); } catch (_) {}
+  }
   function palRun() { const it = pal.items[pal.idx]; palClose(); it && it.run(); }
 
   $("#palIn").addEventListener("input", e => { pal.items = palItems(e.target.value); pal.idx = 0; palRender(); });
@@ -248,12 +251,45 @@
     if (e.key === "ArrowDown") { pal.idx = Math.min(pal.items.length - 1, pal.idx + 1); palRender(); e.preventDefault(); }
     else if (e.key === "ArrowUp") { pal.idx = Math.max(0, pal.idx - 1); palRender(); e.preventDefault(); }
     else if (e.key === "Enter") palRun();
-    else if (e.key === "Escape") palClose();
+    else if (e.key === "Escape" || e.code === "Escape") { e.preventDefault(); palClose(); }
   });
-  $("#palette").addEventListener("mousedown", e => { if (e.target.id === "palette") palClose(); });
+  $("#palette").addEventListener("mousedown", e => {
+    if (e.target.id === "palette" || !e.target.closest(".pal-box")) palClose();
+  });
   $("#menuBtn").onclick = palOpen;
 
+  const palKbd = $(".pal-kbd");
+  if (palKbd) {
+    palKbd.setAttribute("role", "button");
+    palKbd.setAttribute("title", "Close palette (Esc)");
+    palKbd.addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      palClose();
+    });
+  }
+
+  // Global capture for Escape to ensure Command Palette closes from any focus target
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape" || e.code === "Escape") {
+      const palEl = $("#palette");
+      if (palEl && !palEl.hidden) {
+        e.preventDefault();
+        e.stopPropagation();
+        palClose();
+      }
+    }
+  }, true);
+
   function keys(e) {
+    if (e.key === "Escape" || e.code === "Escape") {
+      const palEl = $("#palette");
+      if (palEl && !palEl.hidden) {
+        e.preventDefault();
+        palClose();
+        return;
+      }
+    }
     if ((e.ctrlKey && e.key.toLowerCase() === "k") || (e.altKey && e.code === "Space")) {
       e.preventDefault();
       $("#palette").hidden ? palOpen() : palClose();

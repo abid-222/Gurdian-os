@@ -1391,11 +1391,29 @@ h3 {
 }
 #palIn:focus { box-shadow: none; }
 .pal-kbd {
-  font-size: 10.5px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   color: var(--fg-muted);
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.pal-kbd:hover {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fda4af;
+  transform: translateY(-1px);
+}
+.pal-kbd:active {
+  transform: translateY(1px);
 }
 #palList {
   list-style: none;
