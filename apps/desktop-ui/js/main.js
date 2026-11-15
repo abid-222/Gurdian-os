@@ -251,7 +251,7 @@
     if (e.key === "ArrowDown") { pal.idx = Math.min(pal.items.length - 1, pal.idx + 1); palRender(); e.preventDefault(); }
     else if (e.key === "ArrowUp") { pal.idx = Math.max(0, pal.idx - 1); palRender(); e.preventDefault(); }
     else if (e.key === "Enter") palRun();
-    else if (e.key === "Escape" || e.code === "Escape") { e.preventDefault(); palClose(); }
+    else if (e.key === "Escape" || e.code === "Escape") { e.preventDefault(); e.stopPropagation(); palClose(); }
   });
   $("#palette").addEventListener("mousedown", e => {
     if (e.target.id === "palette" || !e.target.closest(".pal-box")) palClose();
@@ -261,34 +261,66 @@
   const palKbd = $(".pal-kbd");
   if (palKbd) {
     palKbd.setAttribute("role", "button");
+    palKbd.setAttribute("tabindex", "0");
     palKbd.setAttribute("title", "Close palette (Esc)");
-    palKbd.addEventListener("click", e => {
+    palKbd.onclick = e => {
       e.preventDefault();
       e.stopPropagation();
       palClose();
-    });
+    };
+  }
+  const palCloseBtn = $("#palCloseBtn");
+  if (palCloseBtn) {
+    palCloseBtn.onclick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      palClose();
+    };
   }
 
-  // Global capture for Escape to ensure Command Palette closes from any focus target
-  window.addEventListener("keydown", e => {
-    if (e.key === "Escape" || e.code === "Escape") {
-      const palEl = $("#palette");
-      if (palEl && !palEl.hidden) {
-        e.preventDefault();
-        e.stopPropagation();
-        palClose();
+  // Universal Escape handler:
+  // 1. Closes Command Palette if open
+  // 2. Clears focused search input if text is present
+  // 3. Closes top active desktop window (WM.close) if any window is open
+  function handleEscape(e) {
+    const palEl = $("#palette");
+    if (palEl && !palEl.hidden) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      palClose();
+      return true;
+    }
+
+    const active = document.activeElement;
+    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+      if (active.value && active.value.length > 0) {
+        active.value = "";
+        active.dispatchEvent(new Event("input", { bubbles: true }));
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        return true;
       }
+    }
+
+    if (window.WM && Array.isArray(WM.order) && WM.order.length > 0) {
+      const topId = WM.order[WM.order.length - 1];
+      if (topId && WM.wins && WM.wins.has(topId)) {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        WM.close(topId);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Global capture for Escape key
+  window.addEventListener("keydown", e => {
+    if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) {
+      handleEscape(e);
     }
   }, true);
 
   function keys(e) {
-    if (e.key === "Escape" || e.code === "Escape") {
-      const palEl = $("#palette");
-      if (palEl && !palEl.hidden) {
-        e.preventDefault();
-        palClose();
-        return;
-      }
+    if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) {
+      if (handleEscape(e)) return;
     }
     if ((e.ctrlKey && e.key.toLowerCase() === "k") || (e.altKey && e.code === "Space")) {
       e.preventDefault();

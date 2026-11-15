@@ -1390,6 +1390,27 @@ h3 {
   padding: 0;
 }
 #palIn:focus { box-shadow: none; }
+.pal-close-btn {
+  background: transparent;
+  border: 0;
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+.pal-close-btn:hover {
+  background: rgba(244, 63, 94, 0.2);
+  color: #fda4af;
+  transform: scale(1.1);
+}
+.pal-close-btn:active {
+  transform: scale(0.95);
+}
 .pal-kbd {
   font-size: 11px;
   font-weight: 600;
