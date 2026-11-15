@@ -1,0 +1,29 @@
+{
+  "host": "DESKTOP-VT8JB92",
+  "os": "Windows 10",
+  "cpu_count": 8,
+  "ram_gb": 7.9,
+  "date": "2026-11-15 18:42:45",
+  "agent_version": "0.3.0-mvp",
+  "idle_s": 5,
+  "busy_s": 5,
+  "idle_cpu_mean_pct": 5.0,
+  "busy_cpu_mean_pct": 6.23,
+  "busy_cpu_p95_pct": 11.14,
+  "rss_mb_max": 104.3,
+  "workload_processes": 36,
+  "events_generated": 31,
+  "events_dropped": 0,
+  "launched_processes_observed": 265,
+  "drop_rate_pct": 0.0,
+  "alert_latency_s": 4.9,
+  "pe_scoring_ms": "no validated model installed",
+  "targets": {
+    "Idle CPU < 3 %": "MISS",
+    "Busy CPU mean < 10 %": "PASS",
+    "Busy CPU p95 < 20 %": "PASS",
+    "RAM <= 300 MB": "PASS",
+    "Event drop < 0.1 %": "PASS",
+    "Alert latency p95 < 2 s (single sample)": "MISS"
+  }
+}
