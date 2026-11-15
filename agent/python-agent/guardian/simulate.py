@@ -8,6 +8,10 @@ import time, json, pathlib
 from . import config
 
 SCENARIOS = {
+    "payroll_edr_threat": {
+        "title": "Falcon EDR Benchmark: payroll.exe anti-VM evasion, injected threads, and C2 beaconing",
+        "expected_classes": ["E2", "E3", "E4", "E5"],
+    },
     "drop_and_execute": {
         "title": "Document macro drops and runs an unsigned binary, connects out, adds startup entry",
         "expected_classes": ["E2", "E3", "E4", "E5", "E6"],
@@ -45,7 +49,21 @@ def run(agent, name: str) -> dict:
         made.append(key)
         return pi
 
-    if name == "drop_and_execute":
+    if name == "payroll_edr_threat":
+        t0 = now - 35
+        p_init = proc("init", 380, "wininit.exe", r"C:\Windows\System32\wininit.exe", None, "System", "signed", None, t0 - 120)
+        p_init["preexisting"] = False
+        p_ps = proc("ps", 3912, "powershell.exe", r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", p_init["key"], "wininit.exe",
+                    "signed", None, t0 - 20, cmdline=r"powershell.exe -ExecutionPolicy Bypass -File C:\Users\Public\sync.ps1")
+        p_pay = proc("pay", 4820, "payroll.exe", r"C:\Users\Public\Downloads\payroll.exe", p_ps["key"], "powershell.exe",
+                     "unsigned", 5, t0, sha256="4b0d2d8e3707c0dc7efe6b5de7eee75839ff1405c98c8e1d5a7b6e9a0c1b2c3d",
+                     cmdline=r"payroll.exe --stealth-vm-bypass --inject", outbound_ts=t0 + 6, outbound="206.206.99.8:443")
+        proc("netstat", 4910, "netstat.exe", r"C:\Windows\System32\netstat.exe", p_pay["key"], "payroll.exe", "signed", None, t0 + 10, cmdline="netstat -ano")
+        proc("whoami", 4912, "whoami.exe", r"C:\Windows\System32\whoami.exe", p_pay["key"], "payroll.exe", "signed", None, t0 + 12, cmdline="whoami /priv")
+        agent.emit("simulation", "injected_thread", pid=4820, process_key=p_pay["key"], image_path=p_pay["exe"],
+                   ts=t0 + 8, inline=True,
+                   attributes={"target_pid": 4820, "thread_role": "injected_payload", "api": "CreateRemoteThread", "scenario": name})
+    elif name == "drop_and_execute":
         t0 = now - 20
         word = proc("word", 4100, "winword.exe", r"C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE", None, "explorer.exe",
                     "signed", None, t0 - 30)

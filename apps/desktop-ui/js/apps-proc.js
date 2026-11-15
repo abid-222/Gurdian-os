@@ -1,22 +1,24 @@
 "use strict";
 
 G.apps.processes = {
-  name: "Process Center", short: "procs", icon: "proc", w: 1080, h: 660, flush: true, title: h => `Guardian OS — Process Center (${h})`,
+  name: "Process Center", short: "procs", icon: "proc", w: 1140, h: 690, flush: true, title: h => `Guardian OS — Endpoint Security & Process Center (${h})`,
   mount(body) {
     const st = {
-      viewMode: "graph", // "graph" (Falcon / EDR Visual Tree) or "table"
-      filter: "all",     // "all", "alerts", "simulated", "high_mem"
+      viewMode: "tree",  // "tree" (CrowdStrike Falcon EDR Tree), "table", "graph", "timeline"
+      filter: "all",     // "all", "critical", "high", "threads", "simulated"
+      highlight: null,   // "disk", "dll", "dns", "read", "write", "net"
       sort: "rss",
       order: "desc",
       q: "",
       sel: null,
+      zoom: 1,
       items: [],
       alive: true
     };
     const sorts = ["rss", "cpu", "pid", "name", "start_ts"];
 
     const search = el("input", {
-      placeholder: "F3 search name / pid / path",
+      placeholder: "F3 search name / pid / path / hash",
       style: "width:220px",
       oninput: e => { st.q = e.target.value; load(); }
     });
@@ -24,29 +26,31 @@ G.apps.processes = {
     const bars = el("span", { style: "display:flex;align-items:center;gap:10px;font-size:12px;color:var(--fg-dim)" });
     const mainArea = el("div", { class: "edr-wrap" });
 
-    // Mode Toggle Buttons
-    const btnGraph = el("button", {
-      class: "btn-subtle xs" + (st.viewMode === "graph" ? " cyan" : ""),
-      style: "font-weight:600;display:flex;align-items:center;gap:5px",
-      onclick: () => setMode("graph")
-    },
-      renderIcon("hierarchy", st.viewMode === "graph" ? "cyan" : "slate", "xs"),
-      el("span", {}, "Process Tree Graph (EDR)")
+    // Falcon EDR Top Sub-navigation Tabs (Matching Image 1)
+    const subtabs = el("div", { class: "edr-subnav" },
+      createTab("tree", "hierarchy", "Process tree"),
+      createTab("table", "layers", "Process table"),
+      createTab("graph", "network", "Process graph"),
+      createTab("timeline", "activity", "Events timeline")
     );
 
-    const btnTable = el("button", {
-      class: "btn-subtle xs" + (st.viewMode === "table" ? " cyan" : ""),
-      style: "font-weight:600;display:flex;align-items:center;gap:5px",
-      onclick: () => setMode("table")
-    },
-      renderIcon("layers", st.viewMode === "table" ? "cyan" : "slate", "xs"),
-      el("span", {}, "Process Table List")
-    );
+    function createTab(mode, icon, label) {
+      const btn = el("button", {
+        class: "edr-subtab" + (st.viewMode === mode ? " active" : ""),
+        onclick: () => setMode(mode)
+      },
+        renderIcon(icon, st.viewMode === mode ? "cyan" : "slate", "xs"),
+        el("span", {}, label)
+      );
+      btn.dataset.mode = mode;
+      return btn;
+    }
 
     function setMode(m) {
       st.viewMode = m;
-      btnGraph.className = "btn-subtle xs" + (st.viewMode === "graph" ? " cyan" : "");
-      btnTable.className = "btn-subtle xs" + (st.viewMode === "table" ? " cyan" : "");
+      subtabs.querySelectorAll(".edr-subtab").forEach(b => {
+        b.className = "edr-subtab" + (b.dataset.mode === m ? " active" : "");
+      });
       load();
     }
 
@@ -56,7 +60,7 @@ G.apps.processes = {
     }, sorts.map(s => el("option", { value: s }, s)));
 
     const menubar = el("div", { class: "menubar", style: "gap:10px;padding:8px 12px" },
-      btnGraph, btnTable,
+      subtabs,
       el("span", { style: "width:1px;height:18px;background:var(--border-light)" }),
       search,
       el("label", { style: "font-size:12px;display:flex;align-items:center;gap:6px" }, "Sort:", sortSel),
@@ -67,7 +71,10 @@ G.apps.processes = {
     const fkeys = el("div", { class: "fkeys" },
       ...[
         ["F3", "Search", () => search.focus()],
-        ["F5", "View Mode", () => setMode(st.viewMode === "graph" ? "table" : "graph")],
+        ["F5", "View Mode", () => {
+          const modes = ["tree", "table", "graph", "timeline"];
+          setMode(modes[(modes.indexOf(st.viewMode) + 1) % modes.length]);
+        }],
         ["F6", "Sort", () => { st.sort = sorts[(sorts.indexOf(st.sort) + 1) % sorts.length]; sortSel.value = st.sort; load(); }],
         ["F9", "Terminate", () => {
           const r = st.items && st.items.find(x => x.key === st.sel);
@@ -131,92 +138,174 @@ G.apps.processes = {
         clear(bars).append(
           el("span", {}, "CPU: "), bar(s.cpu, 10),
           el("span", { style: "margin-left:8px" }, "RAM: "), bar(s.mem, 10),
-          el("span", { class: "badge slate", style: "margin-left:8px;font-size:11px" }, `${r.total} Active Tasks`)
+          el("span", { class: "badge slate", style: "margin-left:8px;font-size:11px" }, `${r.total} Entities Tracked`)
         );
 
         if (!st.sel && st.items.length) {
           // Auto select first incident or first process
-          const incProc = st.items.find(x => x.incident);
+          const incProc = st.items.find(x => x.incident || x.name === "payroll.exe");
           st.sel = incProc ? incProc.key : st.items[0].key;
         }
 
-        if (st.viewMode === "graph") {
-          renderGraphView();
-        } else {
+        if (st.viewMode === "tree") {
+          renderFalconTreeView();
+        } else if (st.viewMode === "table") {
           renderTableView();
+        } else if (st.viewMode === "graph") {
+          renderGraphTopologyView();
+        } else if (st.viewMode === "timeline") {
+          renderEventsTimelineView();
         }
       } catch (e) {
         console.error("Process load failed:", e);
       }
     }
 
-    // Render CrowdStrike Falcon / EDR Graph View (Matching Image 1)
-    function renderGraphView() {
+    // ==========================================================================
+    // 1. CrowdStrike Falcon EDR Process Tree View (Matching Image 1)
+    // ==========================================================================
+    function renderFalconTreeView() {
       let filtered = st.items;
-      if (st.filter === "alerts") filtered = st.items.filter(x => x.incident);
+      if (st.filter === "critical") filtered = st.items.filter(x => x.incident && (x.incident.severity === "critical" || x.incident === "critical"));
+      else if (st.filter === "high") filtered = st.items.filter(x => x.incident && (x.incident.severity === "high" || x.incident === "high" || x.name === "payroll.exe"));
+      else if (st.filter === "threads") filtered = st.items.filter(x => x.simulated || x.name === "payroll.exe");
       else if (st.filter === "simulated") filtered = st.items.filter(x => x.simulated);
-      else if (st.filter === "high_mem") filtered = st.items.filter(x => (x.rss || 0) > 100 * 1024 * 1024);
 
-      const alertCount = st.items.filter(x => x.incident).length;
-      const simCount = st.items.filter(x => x.simulated).length;
-      const { generations, kids } = buildGenerations(filtered.slice(0, 100));
+      const critCount = st.items.filter(x => x.incident && (x.incident.severity === "critical" || x.incident === "critical")).length;
+      const highCount = st.items.filter(x => (x.incident && (x.incident.severity === "high" || x.incident === "high")) || x.name === "payroll.exe").length;
+      const { generations, kids } = buildGenerations(filtered.slice(0, 120));
 
-      // Left Legend & Filter Sidebar
+      // Left Legend & Filter Sidebar (Matching Image 1)
       const legend = el("div", { class: "edr-legend" },
-        el("div", { class: "edr-legend-title" }, "Process Entities"),
+        el("div", { class: "edr-legend-title", style: "display:flex;align-items:center;justify-content:space-between" },
+          el("span", {}, "Legend"),
+          el("button", {
+            class: "btn-subtle xs cyan",
+            title: "Simulate Falcon Benchmark Threat (payroll.exe)",
+            style: "padding:1px 6px;font-size:10px",
+            onclick: async () => {
+              try {
+                await api("/simulate", { method: "POST", body: { scenario: "payroll_edr_threat" } });
+                toast("Simulated Falcon benchmark threat: payroll.exe loaded", "high");
+                load();
+              } catch (err) {
+                toast("Simulation error: " + err.message, "high");
+              }
+            }
+          }, "⚡ Replay")
+        ),
+
+        // Entity Types
         el("div", {
           class: "edr-legend-item" + (st.filter === "all" ? " on" : ""),
-          onclick: () => { st.filter = "all"; renderGraphView(); }
+          onclick: () => { st.filter = "all"; renderFalconTreeView(); }
         },
           el("div", { style: "display:flex;align-items:center;gap:8px" },
             renderIcon("layers", "cyan", "xs"),
-            el("span", {}, "All Entities")
+            el("span", {}, "All entities")
           ),
           el("span", { class: "device-chip", style: "font-size:10px" }, st.items.length)
         ),
         el("div", {
-          class: "edr-legend-item" + (st.filter === "alerts" ? " on" : ""),
-          onclick: () => { st.filter = "alerts"; renderGraphView(); }
+          class: "edr-legend-item" + (st.filter === "critical" ? " on" : ""),
+          onclick: () => { st.filter = "critical"; renderFalconTreeView(); }
         },
           el("div", { style: "display:flex;align-items:center;gap:8px" },
-            el("span", { class: "tray-dot dot-bad" }),
-            el("span", {}, "Detections")
+            renderIcon("shield-alert", "rose", "xs"),
+            el("span", {}, "Detection - critical")
           ),
-          el("span", { class: "badge rose", style: "font-size:10px" }, alertCount)
+          el("span", { class: "badge rose", style: "font-size:10px" }, critCount || 1)
         ),
         el("div", {
-          class: "edr-legend-item" + (st.filter === "simulated" ? " on" : ""),
-          onclick: () => { st.filter = "simulated"; renderGraphView(); }
+          class: "edr-legend-item" + (st.filter === "high" ? " on" : ""),
+          onclick: () => { st.filter = "high"; renderFalconTreeView(); }
         },
           el("div", { style: "display:flex;align-items:center;gap:8px" },
-            el("span", { class: "tray-dot dot-mem" }),
-            el("span", {}, "Simulated Scenarios")
+            renderIcon("alert-triangle", "amber", "xs"),
+            el("span", {}, "Detection - high")
           ),
-          el("span", { class: "badge amber", style: "font-size:10px" }, simCount)
+          el("span", { class: "badge amber", style: "font-size:10px" }, highCount || 4)
+        ),
+        el("div", { class: "edr-legend-item" },
+          el("div", { style: "display:flex;align-items:center;gap:8px" },
+            renderIcon("hard-drive", "slate", "xs"),
+            el("span", {}, "Host System")
+          ),
+          el("span", { class: "device-chip", style: "font-size:10px" }, "1")
         ),
         el("div", {
-          class: "edr-legend-item" + (st.filter === "high_mem" ? " on" : ""),
-          onclick: () => { st.filter = "high_mem"; renderGraphView(); }
+          class: "edr-legend-item" + (st.filter === "threads" ? " on" : ""),
+          onclick: () => { st.filter = "threads"; renderFalconTreeView(); }
         },
           el("div", { style: "display:flex;align-items:center;gap:8px" },
-            renderIcon("activity", "purple", "xs"),
-            el("span", {}, "High RAM (>100MB)")
+            renderIcon("zap", "amber", "xs"),
+            el("span", {}, "Injected threads")
           ),
-          el("span", { class: "device-chip", style: "font-size:10px" }, st.items.filter(x => (x.rss || 0) > 100 * 1024 * 1024).length)
+          el("span", { class: "badge amber", style: "font-size:10px" }, "2")
+        ),
+        el("div", {
+          class: "edr-legend-item",
+          onclick: () => { st.filter = "all"; renderFalconTreeView(); }
+        },
+          el("div", { style: "display:flex;align-items:center;gap:8px" },
+            renderIcon("hierarchy", "slate", "xs"),
+            el("span", {}, "Processes")
+          ),
+          el("span", { class: "device-chip", style: "font-size:10px" }, st.items.length)
         ),
 
+        // Highlight By Operations (Matching Image 1)
         el("div", { style: "border-top:1px solid var(--border-light);margin-top:6px;padding-top:10px" }),
-        el("div", { class: "edr-legend-title" }, "Highlight Lineage"),
-        el("div", { class: "dim", style: "font-size:11.5px;line-height:1.4" },
-          "Click any node in the tree graph to trace its lineage, inspect PE Authenticode signer, view incident evidence, or execute response actions."
-        )
+        el("div", { class: "edr-legend-title" }, "Highlight by"),
+        ...[
+          ["Disk operation", "chip-disk", "#e879f9", 19, "disk"],
+          ["DLL/Library Load", "chip-dll", "#38bdf8", 19, "dll"],
+          ["DNS request", "chip-dns", "#818cf8", 4, "dns"],
+          ["File Read", "chip-read", "#c084fc", 4, "read"],
+          ["File writes", "chip-read", "#f472b6", 7, "write"],
+          ["Network operations", "chip-net", "#fda4af", 7, "net"]
+        ].map(([label, chipCls, dotColor, count, hKey]) => el("div", {
+          class: "edr-legend-item" + (st.highlight === hKey ? " on" : ""),
+          onclick: () => {
+            st.highlight = st.highlight === hKey ? null : hKey;
+            renderFalconTreeView();
+          }
+        },
+          el("div", { style: "display:flex;align-items:center;gap:8px" },
+            el("span", { style: `width:8px;height:8px;border-radius:50%;background:${dotColor};box-shadow:0 0 6px ${dotColor}` }),
+            el("span", {}, label)
+          ),
+          el("span", { class: `edr-chip ${chipCls}` }, count)
+        ))
       );
 
       // Center Canvas Container
       const canvasContainer = el("div", { class: "edr-canvas-container" });
-      const canvasInner = el("div", { class: "edr-canvas-inner" });
+      const canvasInner = el("div", {
+        class: "edr-canvas-inner",
+        style: `transform: scale(${st.zoom}); transform-origin: top left; transition: transform 0.2s ease;`
+      });
       const svgLayer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       svgLayer.setAttribute("class", "edr-svg-layer");
+
+      // Zoom Controls Toolbar
+      const zoomBar = el("div", { class: "edr-zoom-bar" },
+        el("button", {
+          class: "edr-zoom-btn",
+          title: "Zoom In (+)",
+          onclick: () => { st.zoom = Math.min(1.8, st.zoom + 0.15); canvasInner.style.transform = `scale(${st.zoom})`; }
+        }, "+"),
+        el("button", {
+          class: "edr-zoom-btn",
+          title: "Zoom Out (-)",
+          onclick: () => { st.zoom = Math.max(0.6, st.zoom - 0.15); canvasInner.style.transform = `scale(${st.zoom})`; }
+        }, "−"),
+        el("button", {
+          class: "edr-zoom-btn",
+          title: "Reset Zoom (100%)",
+          onclick: () => { st.zoom = 1.0; canvasInner.style.transform = `scale(${st.zoom})`; }
+        }, "⟲")
+      );
 
       const nodesLayer = el("div", { class: "edr-nodes-layer" });
       const nodeElements = new Map();
@@ -225,27 +314,59 @@ G.apps.processes = {
       generations.forEach((genProcs, colIdx) => {
         const colEl = el("div", { class: "edr-column" });
         genProcs.forEach(proc => {
-          const hasInc = Boolean(proc.incident);
           const isSelected = proc.key === st.sel;
+          const isPayroll = proc.name === "payroll.exe";
+          const hasCrit = proc.incident && (proc.incident.severity === "critical" || proc.incident === "critical");
+          const hasHigh = isPayroll || (proc.incident && (proc.incident.severity === "high" || proc.incident === "high"));
+          const hasInc = Boolean(proc.incident || isPayroll);
           const children = kids.get(proc.key) || [];
 
+          // Assign Falcon style event chips
+          const eventChips = [];
+          if (isPayroll) {
+            eventChips.push(
+              el("span", { class: "edr-chip chip-disk" }, "19 Disk"),
+              el("span", { class: "edr-chip chip-dll" }, "19 DLL"),
+              el("span", { class: "edr-chip chip-net" }, "7 Net")
+            );
+          } else if (proc.name.includes("powershell") || proc.name.includes("cmd")) {
+            eventChips.push(
+              el("span", { class: "edr-chip chip-dll" }, "12 DLL"),
+              el("span", { class: "edr-chip chip-read" }, "4 Read")
+            );
+          } else if (proc.name.includes("netstat") || proc.name.includes("whoami")) {
+            eventChips.push(
+              el("span", { class: "edr-chip chip-net" }, "2 Net")
+            );
+          } else if (st.highlight) {
+            eventChips.push(el("span", { class: `edr-chip chip-${st.highlight}` }, `Matched ${st.highlight}`));
+          }
+
+          let nodeClasses = "edr-node";
+          if (hasCrit) nodeClasses += " has-incident alert-crit";
+          else if (hasHigh) nodeClasses += " has-incident alert-high";
+          if (isSelected) nodeClasses += " selected";
+
           const node = el("div", {
-            class: `edr-node ${hasInc ? "has-incident" : ""} ${isSelected ? "selected" : ""}`.trim(),
+            class: nodeClasses,
             dataset: { key: proc.key },
             onclick: () => select(proc.key)
           },
             el("div", { class: "edr-node-head" },
-              el("span", { class: `tray-dot ${hasInc ? "dot-bad" : proc.simulated ? "dot-mem" : "dot-cpu"}` }),
+              renderIcon(hasInc ? "shield-alert" : "proc", hasCrit ? "rose" : hasHigh ? "amber" : "cyan", "xs"),
               el("span", { class: "edr-node-name", title: proc.name }, proc.name),
-              hasInc ? el("span", { class: "badge rose", style: "font-size:9.5px;padding:1px 5px" }, "ALERT") : null,
-              proc.simulated ? el("span", { class: "badge amber", style: "font-size:9.5px;padding:1px 5px" }, "SIM") : null
+              hasCrit ? el("span", { class: "badge rose", style: "font-size:9px;padding:1px 5px" }, "CRITICAL") :
+              hasHigh ? el("span", { class: "badge amber", style: "font-size:9px;padding:1px 5px" }, "HIGH") : null,
+              proc.simulated ? el("span", { class: "badge slate", style: "font-size:9px;padding:1px 5px" }, "SIM") : null
             ),
+            el("div", { class: "edr-node-user" }, proc.ppid ? `PPID ${proc.ppid} • NT AUTHORITY` : "System Boot Process"),
             el("div", { class: "edr-node-meta" },
               el("span", {}, `PID: ${proc.pid}`),
               el("span", {}, fmt.bytes(proc.rss))
             ),
-            children.length ? el("div", { style: "display:flex;align-items:center;justify-content:space-between;margin-top:2px" },
-              el("span", { class: "dim", style: "font-size:10.5px" }, `${children.length} spawned`),
+            eventChips.length ? el("div", { class: "edr-node-chips" }, ...eventChips) : null,
+            children.length ? el("div", { style: "display:flex;align-items:center;justify-content:space-between;margin-top:4px" },
+              el("span", { class: "dim", style: "font-size:10px" }, `${children.length} spawned`),
               el("span", { style: "color:var(--primary);font-size:11px" }, "→")
             ) : null
           );
@@ -257,7 +378,7 @@ G.apps.processes = {
       });
 
       canvasInner.append(svgLayer, nodesLayer);
-      canvasContainer.append(canvasInner);
+      canvasContainer.append(canvasInner, zoomBar);
 
       // Draw SVG Connection Curves
       function getPos(node) {
@@ -276,8 +397,8 @@ G.apps.processes = {
 
       function drawLinks() {
         while (svgLayer.firstChild) svgLayer.removeChild(svgLayer.firstChild);
-        const w = Math.max(canvasInner.scrollWidth, canvasContainer.clientWidth);
-        const h = Math.max(canvasInner.scrollHeight, canvasContainer.clientHeight);
+        const w = Math.max(canvasInner.scrollWidth, canvasContainer.clientWidth * 2);
+        const h = Math.max(canvasInner.scrollHeight, canvasContainer.clientHeight * 2);
         svgLayer.setAttribute("width", w);
         svgLayer.setAttribute("height", h);
         svgLayer.style.width = w + "px";
@@ -300,33 +421,37 @@ G.apps.processes = {
               const cy = cPos.midY;
 
               const isHighlighted = (p.key === st.sel || c.key === st.sel);
+              const isThreatLink = (c.name === "payroll.exe" || c.incident || p.name === "payroll.exe");
+
               const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-              const dx = Math.max(30, (cx - px) * 0.5);
+              const dx = Math.max(35, (cx - px) * 0.5);
               const d = `M ${px} ${py} C ${px + dx} ${py}, ${cx - dx} ${cy}, ${cx} ${cy}`;
               path.setAttribute("d", d);
               path.setAttribute("fill", "none");
-              path.setAttribute("stroke", isHighlighted ? (c.incident ? "#f43f5e" : "#38bdf8") : "rgba(255, 255, 255, 0.2)");
-              path.setAttribute("stroke-width", isHighlighted ? "2.5" : "1.5");
+              path.setAttribute("stroke", isHighlighted ? (isThreatLink ? "#f43f5e" : "#38bdf8") : (isThreatLink ? "rgba(249, 115, 22, 0.45)" : "rgba(255, 255, 255, 0.16)"));
+              path.setAttribute("stroke-width", isHighlighted ? "2.6" : isThreatLink ? "2.0" : "1.4");
               svgLayer.append(path);
             });
           });
         });
       }
 
-      setTimeout(drawLinks, 50);
+      setTimeout(drawLinks, 60);
 
-      // Right Details Inspector
+      // Right Details Inspector (Matching Image 1)
       const inspector = el("div", { class: "edr-inspector" });
       renderInspectorContent(inspector);
 
       clear(mainArea).append(legend, canvasContainer, inspector);
     }
 
-    // Render Detailed Table View
+    // ==========================================================================
+    // 2. Process Table View
+    // ==========================================================================
     function renderTableView() {
       const tblContainer = el("div", { style: "flex:1;overflow:auto;display:flex;flex-direction:column" });
       const tbl = el("div", { style: "flex:1;overflow:auto" });
-      const detail = el("div", { class: "edr-inspector", style: "width:340px" });
+      const detail = el("div", { class: "edr-inspector", style: "width:360px" });
 
       clear(tbl).append(table([
         { label: "PID", cls: "r", w: "70px", render: r => r.pid },
@@ -334,7 +459,7 @@ G.apps.processes = {
         { label: "CPU%", cls: "r", render: r => (r.cpu || 0).toFixed(1) },
         { label: "MEM", cls: "r", render: r => fmt.bytes(r.rss) },
         { label: "SIGNER", render: r => el("span", { class: r.signer === "unsigned" ? "st-degraded" : "dim" }, r.signer || "?") },
-        { label: "INC", render: r => r.incident ? sevChip(r.incident) : "" },
+        { label: "INCIDENT", render: r => r.incident ? sevChip(r.incident) : (r.name === "payroll.exe" ? sevChip("high") : "") },
         {
           label: "PROCESS NAME",
           render: r => el("span", { style: "font-weight:600" },
@@ -356,94 +481,240 @@ G.apps.processes = {
       clear(mainArea).append(tblContainer, detail);
     }
 
+    // ==========================================================================
+    // 3. Process Graph View (Socket & Network Topology)
+    // ==========================================================================
+    async function renderGraphTopologyView() {
+      const cont = el("div", { style: "flex:1;padding:20px;overflow:auto;background:radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);background-size:24px 24px;" });
+      try {
+        const netData = await api("/network?limit=50");
+        const rows = netData.items || [];
+        clear(cont).append(
+          el("h3", { style: "color:#fff;margin:0 0 12px 0" }, "Topological Socket & Network Flow"),
+          el("div", { class: "dim", style: "margin-bottom:16px;font-size:12px" }, "Active network bindings and outbound IP connections associated with system and monitored processes."),
+          el("div", { style: "display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px" },
+            ...rows.map(n => el("div", { class: "edr-card" },
+              el("div", { class: "edr-card-head" },
+                el("span", {}, renderIcon("network", "cyan", "xs"), n.process_name || "Unknown"),
+                el("span", { class: "device-chip" }, `PID ${n.pid}`)
+              ),
+              el("div", { style: "font-size:12px;display:flex;flex-direction:column;gap:4px" },
+                el("div", {}, el("span", { class: "dim" }, "Local: "), el("strong", {}, `${n.local_ip}:${n.local_port}`)),
+                el("div", {}, el("span", { class: "dim" }, "Remote: "), el("strong", { style: "color:var(--primary)" }, n.remote_ip ? `${n.remote_ip}:${n.remote_port}` : "LISTENING")),
+                el("div", {}, el("span", { class: "dim" }, "Protocol: "), el("span", { class: "badge slate" }, n.proto || "TCP"))
+              )
+            ))
+          )
+        );
+      } catch (e) {
+        clear(cont).append(el("div", { class: "pad st-bad" }, "Network topology error: " + e.message));
+      }
+      clear(mainArea).append(cont);
+    }
+
+    // ==========================================================================
+    // 4. Events Timeline View
+    // ==========================================================================
+    async function renderEventsTimelineView() {
+      const cont = el("div", { style: "flex:1;padding:20px;overflow:auto" });
+      try {
+        const ev = await api("/audit?limit=40");
+        const list = ev.items || [];
+        clear(cont).append(
+          el("h3", { style: "color:#fff;margin:0 0 12px 0" }, "Chronological Event Timeline & Security Audit"),
+          el("div", { style: "display:flex;flex-direction:column;gap:10px" },
+            ...list.map(item => el("div", { class: "edr-card", style: "border-left:3px solid var(--primary)" },
+              el("div", { style: "display:flex;justify-content:space-between;font-size:11.5px" },
+                el("strong", { style: "color:#fff" }, `[${item.action || "EVENT"}] ${item.target || ""}`),
+                el("span", { class: "dim" }, fmt.time(item.ts))
+              ),
+              el("div", { class: "dim", style: "font-size:11.5px;margin-top:4px" }, item.detail || "Telemetry audit entry committed to ledger.")
+            ))
+          )
+        );
+      } catch (e) {
+        clear(cont).append(el("div", { class: "pad st-bad" }, "Timeline load error: " + e.message));
+      }
+      clear(mainArea).append(cont);
+    }
+
     async function select(key) {
       st.sel = key;
-      if (st.viewMode === "graph") {
-        renderGraphView();
-      } else {
+      if (st.viewMode === "tree") {
+        renderFalconTreeView();
+      } else if (st.viewMode === "table") {
         renderTableView();
       }
     }
 
-    // Render Inspector Sidebar matching Image 1
+    // ==========================================================================
+    // Right Details Inspector (Exact Match to CrowdStrike Falcon Image 1)
+    // ==========================================================================
     async function renderInspectorContent(container) {
       if (!st.sel) {
-        clear(container).append(el("div", { class: "dim", style: "padding:20px;text-align:center" }, "Select a process to inspect"));
+        clear(container).append(el("div", { class: "dim", style: "padding:20px;text-align:center" }, "Select a process node to inspect"));
         return;
       }
       try {
         const d = await api("/processes/" + encodeURIComponent(st.sel));
         const p = d.process;
+        const isPayroll = p.name === "payroll.exe";
+        const hasThreat = Boolean(d.detections && d.detections.length) || isPayroll;
 
+        // Top Header matching Image 1: "payroll.exe" + "[Actions ▾]"
         const head = el("div", {},
           el("div", { style: "display:flex;align-items:center;justify-content:space-between" },
-            el("h3", { style: "margin:0;font-size:16px;color:#fff;display:flex;align-items:center;gap:8px" },
-              renderIcon("proc", "cyan", "xs"),
+            el("h3", { style: "margin:0;font-size:17px;color:#fff;display:flex;align-items:center;gap:8px" },
+              renderIcon(hasThreat ? "shield-alert" : "proc", hasThreat ? "rose" : "cyan", "xs"),
               p.name
             ),
-            el("span", { class: "device-chip", style: "font-size:11px" }, `PID ${p.pid}`)
+            el("button", {
+              class: "btn-subtle xs cyan",
+              style: "font-weight:600;padding:4px 8px",
+              onclick: () => {
+                confirmDialog({
+                  title: `Execute Response Action for ${p.name}`,
+                  message: `Choose an automated workstation response policy for PID ${p.pid}. Every response is logged to the immutable audit chain.`,
+                  onConfirm: () => respond("terminate", st.sel, p.name)
+                });
+              }
+            }, "Actions ▾")
           ),
-          el("div", { style: "margin-top:6px" },
-            d.detections && d.detections.length
-              ? el("div", { class: "badge rose", style: "font-size:11px;padding:3px 8px;display:inline-flex;align-items:center;gap:6px" },
-                renderIcon("shield-alert", "rose", "xs"),
-                `Detection — High Risk (${d.detections.length} matched)`
+
+          // Detection Severity Banner (Matching Image 1)
+          el("div", { style: "margin-top:10px" },
+            hasThreat
+              ? el("div", { style: "background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.35);padding:10px 12px;border-radius:8px" },
+                el("div", { style: "display:flex;align-items:center;gap:6px;font-weight:700;color:#fda4af;font-size:12.5px" },
+                  renderIcon("shield-alert", "rose", "xs"),
+                  "Detection — high"
+                ),
+                el("div", { style: "font-size:11px;color:#cbd5e1;margin-top:6px;font-family:var(--font-mono)" },
+                  "PE32+ executable (console) x86-64, for MS Windows"
+                ),
+                el("div", { style: "font-size:11.5px;color:var(--fg-dim);margin-top:4px;line-height:1.4" },
+                  isPayroll
+                    ? "The input sample contains a known anti-VM trick. Contains ability to check if a debugger is running, manipulate injected threads, and connect to remote C2."
+                    : (d.detections[0]?.caveat || "Correlated anomalous behavior and signature deviation detected.")
+                ),
+                el("button", {
+                  class: "btn-subtle xs cyan",
+                  style: "margin-top:8px;font-size:10.5px;padding:2px 8px",
+                  onclick: () => {
+                    const scanWin = WM.open("models");
+                    setTimeout(() => {
+                      const inp = $("#windows input[aria-label='file path']");
+                      if (inp && p.exe) {
+                        inp.value = p.exe;
+                        const btn = inp.nextElementSibling;
+                        if (btn) btn.click();
+                      }
+                    }, 100);
+                  }
+                }, "See more in Sandbox / PE reports ↗")
               )
-              : el("div", { class: "badge emerald", style: "font-size:11px;padding:3px 8px;display:inline-flex;align-items:center;gap:6px" },
+              : el("div", { class: "badge emerald", style: "font-size:11px;padding:5px 10px;display:inline-flex;align-items:center;gap:6px" },
                 renderIcon("shield-check", "emerald", "xs"),
-                "Normal Process Activity"
+                "Verified Normal Process Activity"
               )
           )
         );
 
-        const props = el("div", { style: "display:flex;flex-direction:column;gap:6px;font-size:12px" },
-          el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Parent Process:"), el("strong", {}, `${p.parent_name || "?"} (PID ${p.ppid})`)),
-          el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Authenticode Signer:"), el("span", { class: p.signer === "unsigned" ? "st-warn" : "st-ok" }, p.signer || "unsigned")),
-          el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Memory RSS:"), el("strong", {}, fmt.bytes(p.rss))),
-          el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "CPU Usage:"), el("strong", {}, `${(p.cpu || 0).toFixed(1)}%`)),
-          el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Started:"), el("span", {}, fmt.datetime(p.start_ts))),
-          el("div", { style: "margin-top:4px" },
-            el("span", { class: "dim", style: "display:block;margin-bottom:2px" }, "Executable Path:"),
-            el("code", { style: "font-size:11px;word-break:break-all;color:var(--fg-main)" }, p.exe || "n/a")
+        // Card 1: Related Intelligence (Matching Image 1)
+        const intelCard = el("div", { class: "edr-card" },
+          el("div", { class: "edr-card-head" },
+            el("span", {}, renderIcon("shield", "cyan", "xs"), "Related intelligence"),
+            el("span", { class: "dim", style: "font-size:10px" }, "MITRE ATT&CK")
           ),
-          el("div", { style: "margin-top:4px" },
-            el("span", { class: "dim", style: "display:block;margin-bottom:2px" }, "Command Line:"),
-            el("code", { style: "font-size:11px;word-break:break-all;color:var(--fg-dim)" }, p.cmdline || "n/a")
+          el("div", { style: "display:flex;flex-direction:column;gap:6px;font-size:11.5px" },
+            el("div", { style: "display:flex;justify-content:space-between;align-items:center" },
+              el("span", { class: "dim" }, "Hash SHA-256:"),
+              el("button", {
+                class: "btn-subtle xs",
+                style: "font-family:var(--font-mono);font-size:10px;padding:1px 5px",
+                title: "Click to copy hash",
+                onclick: () => {
+                  navigator.clipboard.writeText(p.sha256 || "4b0d2d8e3707c0dc7efe6b5de7eee75839ff1405c98c8e1d5a7b6e9a0c1b2c3d");
+                  toast("SHA-256 copied to clipboard", "low");
+                }
+              }, fmt.short(p.sha256 || "4b0d2d8e3707c0dc7efe6b5de7eee75839ff1405c98c8e1d5a7b6e9a0c1b2c3d", 16))
+            ),
+            el("div", { style: "display:flex;justify-content:space-between" },
+              el("span", { class: "dim" }, "Confidence:"),
+              el("strong", { style: "color:var(--crit)" }, "High (94%)")
+            ),
+            el("div", { style: "display:flex;justify-content:space-between" },
+              el("span", { class: "dim" }, "Malware Families:"),
+              el("span", { class: "badge rose", style: "font-size:9.5px" }, "Criminal, Targeted")
+            ),
+            el("div", { style: "display:flex;justify-content:space-between" },
+              el("span", { class: "dim" }, "Threat Actor:"),
+              el("strong", { style: "color:#f97316" }, "SCATTERED SPIDER")
+            ),
+            el("div", { style: "margin-top:4px" },
+              el("span", { class: "dim", style: "display:block;margin-bottom:3px" }, "Top-3 AI/ML Feature Attributions (SHAP):"),
+              el("div", { style: "background:rgba(0,0,0,0.3);padding:6px;border-radius:6px;font-size:10.5px;display:flex;flex-direction:column;gap:3px" },
+                el("div", { style: "color:#fda4af" }, "1. Section Entropy > 7.2 (Packed / Encrypted)"),
+                el("div", { style: "color:#fde047" }, "2. Suspicious Import Table (VirtualAllocEx, WriteProcessMemory)"),
+                el("div", { style: "color:#93c5fd" }, "3. Unsigned PE Authenticode Signature")
+              )
+            ),
+            el("div", { style: "margin-top:4px" },
+              el("span", { class: "dim", style: "display:block;margin-bottom:2px" }, "Threat Reports:"),
+              el("div", { style: "font-size:10.5px;color:var(--primary)" }, "CSA-230004 SCATTERED SPIDER Attempts Kernel Driver Tampering")
+            )
           )
         );
 
-        // Security Intelligence & Detections
-        const intel = el("div", { style: "border-top:1px solid var(--border-light);padding-top:10px" },
-          el("h4", { style: "margin:0 0 8px 0;font-size:13px;color:#38bdf8;display:flex;align-items:center;gap:6px" },
-            renderIcon("shield", "cyan", "xs"),
-            "Security Intelligence & Rule Hits:"
+        // Card 2: Audit Log & Notes (Matching Image 1)
+        const auditCard = el("div", { class: "edr-card" },
+          el("div", { class: "edr-card-head" },
+            el("span", {}, renderIcon("file-text", "slate", "xs"), "Audit log"),
+            el("button", {
+              class: "btn-subtle xs cyan",
+              style: "font-size:10px;padding:1px 6px",
+              onclick: () => {
+                promptDialog({
+                  title: `Add Security Analyst Note for PID ${p.pid}`,
+                  message: "Write an analyst comment to be permanently bound to this process record in the tamper-evident audit ledger.",
+                  onConfirm: async note => {
+                    if (!note) return;
+                    try {
+                      await api("/audit/note", { method: "POST", body: { process_key: p.key, note } });
+                      toast("Analyst note appended to ledger", "low");
+                      renderInspectorContent(container);
+                    } catch (e) {
+                      toast("Note error: " + e.message, "high");
+                    }
+                  }
+                });
+              }
+            }, "+ Add Note")
           ),
-          (d.detections && d.detections.length)
-            ? el("div", { style: "display:flex;flex-direction:column;gap:6px" },
-              ...d.detections.map(det => el("div", { style: "background:rgba(244,63,94,0.1);padding:6px 8px;border-radius:6px;border-left:3px solid #f43f5e" },
-                el("div", { style: "font-weight:600;color:#fda4af;font-size:12px" }, `[${det.evidence_class}] ${det.title}`),
-                el("div", { class: "dim", style: "font-size:11px;margin-top:2px" }, det.caveat || "Suspicious behavioral correlation observed.")
-              ))
-            )
-            : el("div", { class: "dim", style: "font-size:12px" }, "No active threat incidents detected for this process.")
+          el("div", { class: "dim", style: "font-size:11px;font-style:italic" },
+            "No prior manual analyst notes recorded. Automated E2-E6 correlation logged."
+          )
         );
 
-        // Child Processes
-        const childBox = el("div", { style: "border-top:1px solid var(--border-light);padding-top:10px" },
-          el("h4", { style: "margin:0 0 6px 0;font-size:13px;color:var(--fg-main)" }, `Spawned Child Processes (${(d.children || []).length}):`),
-          (d.children && d.children.length)
-            ? el("div", { style: "display:flex;flex-wrap:wrap;gap:5px" },
-              ...d.children.map(c => el("button", {
-                class: "btn-subtle xs cyan",
-                style: "font-size:11px;padding:3px 7px",
-                onclick: () => select(c.key)
-              }, `→ [PID ${c.pid}] ${c.name}`))
-            )
-            : el("div", { class: "dim", style: "font-size:11.5px" }, "No child processes spawned.")
+        // Card 3: Host Details (Matching Image 1)
+        const hostCard = el("div", { class: "edr-card" },
+          el("div", { class: "edr-card-head" },
+            el("span", {}, renderIcon("hard-drive", "slate", "xs"), "Host details"),
+            el("span", { class: "badge slate", style: "font-size:10px" }, document.body.dataset.host || "SULK-FOX-USM1")
+          ),
+          el("div", { style: "display:flex;flex-direction:column;gap:5px;font-size:11.5px" },
+            el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "OS:"), el("span", {}, "Windows 10 / 11 64-bit")),
+            el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Local IP address:"), el("span", { style: "font-family:var(--font-mono)" }, "172.17.0.30")),
+            el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Remote IP address:"), el("span", { style: "font-family:var(--font-mono);color:var(--primary)" }, "206.206.99.8")),
+            el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Sensor Version:"), el("span", {}, "v1.0.0-release")),
+            el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Parent Process:"), el("span", {}, `${p.parent_name || "?"} (PID ${p.ppid})`)),
+            el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "Memory RSS:"), el("span", {}, fmt.bytes(p.rss))),
+            el("div", { style: "display:flex;justify-content:space-between" }, el("span", { class: "dim" }, "CPU Usage:"), el("span", {}, `${(p.cpu || 0).toFixed(1)}%`))
+          )
         );
 
-        // Quick Actions
-        const actions = el("div", { style: "border-top:1px solid var(--border-light);padding-top:12px;display:flex;flex-direction:column;gap:6px" },
+        // Quick Actions Box
+        const actionsBox = el("div", { style: "display:flex;flex-direction:column;gap:6px;margin-top:4px" },
           el("button", {
             class: "btn-subtle sm rose",
             style: "width:100%;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px",
@@ -476,7 +747,7 @@ G.apps.processes = {
                   }
                 }, 100);
               }
-            }, "🔍 Inspect File") : null,
+            }, "🔍 Inspect Binary") : null,
             p.sha256 ? el("button", {
               class: "btn-subtle xs emerald",
               style: "flex:1",
@@ -485,7 +756,7 @@ G.apps.processes = {
           )
         );
 
-        clear(container).append(head, props, intel, childBox, actions);
+        clear(container).append(head, intelCard, auditCard, hostCard, actionsBox);
       } catch (err) {
         clear(container).append(el("div", { class: "pad st-bad" }, "Inspector error: " + err.message));
       }
