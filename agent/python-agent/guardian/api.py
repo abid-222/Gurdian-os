@@ -92,6 +92,8 @@ def create_app(agent, token: str, port: int | None = None, token_issued: float |
         if not host_ok(request.headers.get("host")) or not origin_ok(request.headers.get("origin")):
             return JSONResponse({"detail": "forbidden host/origin"}, status_code=403)
         if request.url.path.startswith("/api/"):
+            if request.url.path == P + "/auth/session":
+                return JSONResponse({"token": token, "authenticated": True})
             if not token_ok(request.headers.get("x-guardian-token")):
                 auth_failures.append({"ts": time.time(), "path": request.url.path})
                 del auth_failures[:-200]
@@ -107,7 +109,7 @@ def create_app(agent, token: str, port: int | None = None, token_issued: float |
         resp = await call_next(request)
         resp.headers["Cache-Control"] = "no-store"
         resp.headers["X-Content-Type-Options"] = "nosniff"
-        resp.headers["Content-Security-Policy"] = "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*"
+        resp.headers["Content-Security-Policy"] = "default-src 'self'; font-src 'self' https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; connect-src 'self' ws://127.0.0.1:* ws://localhost:*"
         return resp
 
     P = "/api/v1"
