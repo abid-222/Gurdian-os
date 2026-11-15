@@ -66,7 +66,9 @@ const ICONS = {
   "clock": '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   "refresh-cw": '<path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>',
   "database": '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
-  "box": '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'
+  "box": '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  "model": '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  "cfg": '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>'
 };
 
 function svgRaw(name, extraAttrs = {}) {
@@ -122,12 +124,12 @@ async function api(path, opts = {}) {
   if (opts.body !== undefined) { o.headers["Content-Type"] = "application/json"; o.body = JSON.stringify(opts.body); }
   let r = await fetch("/api/v1" + path, o);
   if (r.status === 401) {
-    // If token was stale from an agent restart, auto-resync loopback token
+    // Token stale (agent restarted) — silently re-fetch loopback session token and retry once
     try {
       const s = await fetch("/api/v1/auth/session");
       if (s.ok) {
         const d = await s.json();
-        if (d.token && d.token !== token) {
+        if (d.token) {
           G.token = token = d.token;
           try { sessionStorage.setItem("g_tok", token); localStorage.setItem("g_tok", token); } catch(e) {}
           o.headers["X-Guardian-Token"] = token;
@@ -136,8 +138,16 @@ async function api(path, opts = {}) {
       }
     } catch (e) {}
   }
-  if (r.status === 401) { showLock(); throw new Error("unauthorised"); }
-  if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m; } catch (e) { } throw new Error(typeof m === "string" ? m : JSON.stringify(m)); }
+  if (r.status === 401) {
+    // Still 401 after re-auth attempt — show non-blocking toast instead of lock screen
+    toast("Session expired. Reload the page.", "high");
+    throw new Error("unauthorised");
+  }
+  if (!r.ok) {
+    let m = r.statusText;
+    try { m = (await r.json()).detail || m; } catch (e) {}
+    throw new Error(typeof m === "string" ? m : JSON.stringify(m));
+  }
   return r.json();
 }
 
@@ -162,13 +172,10 @@ function connectWS() {
 }
 
 function showLock() {
-  const s = $("#shell"), l = $("#lock");
-  if (s) s.hidden = true;
-  if (l) l.hidden = false;
-  setTimeout(() => {
-    const inp = $("#tokenIn");
-    if (inp) inp.focus();
-  }, 50);
+  // Lock screen removed — show a non-intrusive toast instead and attempt page reload
+  console.warn("Guardian: session token invalid or expired.");
+  toast("Session expired — reloading…", "high");
+  setTimeout(() => location.reload(), 2000);
 }
 
 /* Reusable table: columns [{k, label, w, render, cls}] */

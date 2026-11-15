@@ -280,22 +280,27 @@
 
   // Universal Escape handler (capture phase — fires before ANY element's keydown):
   // Priority 1 → Close Command Palette
-  // Priority 2 → Close top active WM window (ESC always closes window, don't block on input)
+  // Priority 2 → Close top NON-HOME window (home is permanent backdrop, never ESC-close)
   function handleEscape(e) {
-    // Always stop further propagation so inner inputs cannot swallow ESC
     if (e) { e.preventDefault(); e.stopPropagation(); }
 
+    // 1. Close Command Palette first
     const palEl = $("#palette");
     if (palEl && !palEl.hidden) {
       palClose();
       return true;
     }
 
+    // 2. Close topmost non-home window
     if (window.WM && Array.isArray(WM.order) && WM.order.length > 0) {
-      const topId = WM.order[WM.order.length - 1];
-      if (topId && WM.wins && WM.wins.has(topId)) {
-        WM.close(topId);
-        return true;
+      // Walk from top of stack, skip 'home' (permanent backdrop)
+      for (let i = WM.order.length - 1; i >= 0; i--) {
+        const topId = WM.order[i];
+        if (topId === "home") continue; // never ESC-close home
+        if (topId && WM.wins && WM.wins.has(topId)) {
+          WM.close(topId);
+          return true;
+        }
       }
     }
     return false;
@@ -309,7 +314,7 @@
   }, true /* capture */);
 
   function keys(e) {
-    // ESC already handled in capture phase above — no double handling needed
+    // ESC fully handled in capture phase above
     if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) return;
     if ((e.ctrlKey && e.key.toLowerCase() === "k") || (e.altKey && e.code === "Space")) {
       e.preventDefault();
