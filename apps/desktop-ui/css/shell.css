@@ -1468,6 +1468,19 @@ input:focus, select:focus, textarea:focus {
 .pad { padding: 14px 18px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 960px) { .grid4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 580px) { .grid4 { grid-template-columns: 1fr; } }
+.threads-wrap {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 100%;
+  box-sizing: border-box;
+}
 .card {
   border: 1px solid var(--border-light);
   border-radius: 12px;
