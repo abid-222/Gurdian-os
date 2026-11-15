@@ -130,6 +130,108 @@ button, input, select, textarea {
   z-index: 0;
 }
 
+/* ==========================================================================
+   Professional 3D Glassmorphic Icon Frame System (Linear / Raycast / macOS)
+   ========================================================================== */
+.icon-frame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  position: relative;
+  vertical-align: middle;
+}
+
+.icon-frame svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  transition: transform 0.22s ease;
+}
+
+/* Size Variants */
+.icon-frame.xs { width: 18px; height: 18px; border-radius: 5px; box-shadow: none; border-width: 0.8px; }
+.icon-frame.xs svg { width: 11px; height: 11px; stroke-width: 2.2; }
+
+.icon-frame.sm { width: 30px; height: 30px; border-radius: 8px; }
+.icon-frame.sm svg { width: 15px; height: 15px; }
+
+.icon-frame.md { width: 38px; height: 38px; border-radius: 10px; }
+.icon-frame.md svg { width: 18px; height: 18px; }
+
+.icon-frame.lg { width: 48px; height: 48px; border-radius: 14px; }
+.icon-frame.lg svg { width: 24px; height: 24px; }
+
+.icon-frame.xl { width: 64px; height: 64px; border-radius: 18px; }
+.icon-frame.xl svg { width: 32px; height: 32px; stroke-width: 1.8; }
+
+/* Color Variants for Semantic Meaning */
+.icon-frame.cyan {
+  background: linear-gradient(145deg, rgba(56, 189, 248, 0.18), rgba(56, 189, 248, 0.04));
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38BDF8;
+  box-shadow: inset 0 1px 0 rgba(56, 189, 248, 0.25), 0 4px 14px rgba(56, 189, 248, 0.12);
+}
+
+.icon-frame.emerald {
+  background: linear-gradient(145deg, rgba(16, 185, 129, 0.18), rgba(16, 185, 129, 0.04));
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10B981;
+  box-shadow: inset 0 1px 0 rgba(16, 185, 129, 0.25), 0 4px 14px rgba(16, 185, 129, 0.12);
+}
+
+.icon-frame.amber {
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.20), rgba(245, 158, 11, 0.05));
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #F59E0B;
+  box-shadow: inset 0 1px 0 rgba(245, 158, 11, 0.25), 0 4px 14px rgba(245, 158, 11, 0.15);
+}
+
+.icon-frame.rose {
+  background: linear-gradient(145deg, rgba(244, 63, 94, 0.20), rgba(244, 63, 94, 0.05));
+  border-color: rgba(244, 63, 94, 0.35);
+  color: #F43F5E;
+  box-shadow: inset 0 1px 0 rgba(244, 63, 94, 0.25), 0 4px 14px rgba(244, 63, 94, 0.15);
+}
+
+.icon-frame.indigo {
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.20), rgba(99, 102, 241, 0.05));
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #818CF8;
+  box-shadow: inset 0 1px 0 rgba(99, 102, 241, 0.25), 0 4px 14px rgba(99, 102, 241, 0.12);
+}
+
+.icon-frame.purple {
+  background: linear-gradient(145deg, rgba(168, 85, 247, 0.20), rgba(168, 85, 247, 0.05));
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #C084FC;
+  box-shadow: inset 0 1px 0 rgba(168, 85, 247, 0.25), 0 4px 14px rgba(168, 85, 247, 0.12);
+}
+
+.icon-frame.slate {
+  background: linear-gradient(145deg, rgba(148, 163, 184, 0.12), rgba(148, 163, 184, 0.03));
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #94A3B8;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.badge-icon-frame {
+  margin-right: 4px;
+}
+
 /* Shell Layout Grid */
 #shell {
   position: fixed;

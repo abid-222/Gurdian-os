@@ -83,7 +83,7 @@
           "aria-label": DOCK_LABELS[id] || a.name,
           onclick: () => WM.toggle(id)
         },
-          WM.svg(a.icon),
+          renderIcon(WM.alias(a.icon), "slate", "md"),
           id === "security" ? el("span", { class: "badge" }) : null
         );
         dock.append(btn);
@@ -135,25 +135,25 @@
         tSrc.className = okN === tot ? "st-ok" : "st-degraded";
       }
 
-      // Friendly Status Banner Pill
+      // Friendly Status Banner Pill (Crisp SVG - No Text Emojis)
       const ban = $("#banner");
       if (ban) {
         clear(ban);
         const crit = s.incidents_open || 0;
         if (h.db.recovery_notice) {
-          ban.append(el("span", { class: "bn-pill crit", title: h.db.recovery_notice }, el("span", { class: "bn-dot" }), "Database Recovered"));
+          ban.append(el("span", { class: "bn-pill crit", title: h.db.recovery_notice }, renderIcon("database", "rose", "xs"), el("span", { style: "margin-left:5px" }, "Database Recovered")));
         } else if (h.paused) {
-          ban.append(el("span", { class: "bn-pill warn" }, el("span", { class: "bn-dot" }), "Monitoring Paused"));
+          ban.append(el("span", { class: "bn-pill warn" }, renderIcon("pause", "amber", "xs"), el("span", { style: "margin-left:5px" }, "Monitoring Paused")));
         } else if (h.db.read_only) {
-          ban.append(el("span", { class: "bn-pill crit" }, el("span", { class: "bn-dot" }), "Database Read-Only"));
+          ban.append(el("span", { class: "bn-pill crit" }, renderIcon("lock", "rose", "xs"), el("span", { style: "margin-left:5px" }, "Database Read-Only")));
         } else if (crit > 0) {
-          ban.append(el("span", { class: "bn-pill crit" }, el("span", { class: "bn-dot" }), `⚠️ ${crit} Active Incident${crit > 1 ? "s" : ""}`));
+          ban.append(el("span", { class: "bn-pill crit" }, renderIcon("shield-alert", "rose", "xs"), el("span", { style: "margin-left:5px" }, `${crit} Active Incident${crit > 1 ? "s" : ""}`)));
         } else if (!h.admin) {
-          ban.append(el("span", { class: "bn-pill warn" }, el("span", { class: "bn-dot" }), "⚠️ Limited Protection • Needs Admin Access"));
+          ban.append(el("span", { class: "bn-pill warn" }, renderIcon("alert-triangle", "amber", "xs"), el("span", { style: "margin-left:5px" }, "Limited Protection • Needs Admin Access")));
         } else if (h.degraded && h.degraded.length) {
-          ban.append(el("span", { class: "bn-pill warn" }, el("span", { class: "bn-dot" }), `Degraded: ${h.degraded.join(", ")}`));
+          ban.append(el("span", { class: "bn-pill warn" }, renderIcon("alert-circle", "amber", "xs"), el("span", { style: "margin-left:5px" }, `Degraded: ${h.degraded.join(", ")}`)));
         } else {
-          ban.append(el("span", { class: "bn-pill" }, el("span", { class: "bn-dot" }), "🛡️ System Protected"));
+          ban.append(el("span", { class: "bn-pill" }, renderIcon("shield-check", "emerald", "xs"), el("span", { style: "margin-left:5px" }, "System Fully Protected")));
         }
       }
 

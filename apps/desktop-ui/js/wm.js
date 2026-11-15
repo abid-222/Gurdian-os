@@ -2,22 +2,12 @@
 "use strict";
 const WM = {
   wins: new Map(), z: 10, order: [],
-  ICON: {
-    home: '<path d="M3 11l9-7 9 7v9H3z"/><path d="M9 20v-6h6v6"/>',
-    term: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>',
-    proc: '<path d="M4 6h16M4 12h10M4 18h16"/><circle cx="18" cy="12" r="2"/>',
-    net: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
-    sec: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
-    sys: '<path d="M3 17l5-6 4 4 4-8 5 6"/><path d="M3 21h18"/>',
-    log: '<path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h5"/>',
-    model: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>',
-    cfg: '<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  alias(name) {
+    const m = { proc: "hierarchy", net: "globe", sec: "shield", sys: "activity", log: "file-text", model: "file-search", cfg: "settings", term: "terminal", home: "home" };
+    return m[name] || name;
   },
   svg(name) {
-    const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    s.setAttribute("viewBox", "0 0 24 24");
-    s.innerHTML = this.ICON[name] || "";
-    return s;
+    return svgRaw(this.alias(name));
   },
 
   open(id, opts = {}) {
@@ -34,7 +24,8 @@ const WM = {
       el("button", { class: "wb x", title: "Maximise", "aria-label": "Maximise", onclick: e => { e.stopPropagation(); this.toggleMax(id); } }, "□"),
       el("button", { class: "wb c", title: "Close", "aria-label": "Close", onclick: e => { e.stopPropagation(); this.close(id); } }, "×")
     );
-    const bar = el("div", { class: "titlebar" }, el("span", { class: "ico" }, this.svg(app.icon)), ttl, actions);
+    const iconFrame = renderIcon(this.alias(app.icon), "cyan", "xs", "win-titlebar-icon");
+    const bar = el("div", { class: "titlebar" }, iconFrame, ttl, actions);
     const body = el("div", { class: "win-body" + (app.flush ? " flush" : "") });
     const grip = el("div", { class: "resize" });
     win.append(bar, body, grip); host.append(win);
@@ -122,11 +113,16 @@ const WM = {
       let i = 0;
       Object.keys(G.apps).forEach(id => {
         const r = this.wins.get(id); if (!r) return; i++;
-        ws.append(el("button", {
+        const tabBtn = el("button", {
           class: (r.win.classList.contains("focus") && !r.min ? "active " : "") + (r.min ? "min" : ""),
           onclick: () => this.toggle(id),
-          title: r.app.name
-        }, `${r.app.name}`));
+          title: r.app.name,
+          style: "display:inline-flex;align-items:center;gap:6px"
+        },
+          renderIcon(this.alias(r.app.icon), r.win.classList.contains("focus") && !r.min ? "cyan" : "slate", "xs"),
+          el("span", {}, r.app.name)
+        );
+        ws.append(tabBtn);
       });
     }
 

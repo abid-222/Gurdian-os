@@ -1,15 +1,15 @@
 "use strict";
 
 const SHIELD_MAP = {
-  processes: { title: "Process & App Monitor", desc: "Live process creation & PCB tracking" },
-  network: { title: "Network Traffic Guard", desc: "Live sockets & network connections" },
-  resources: { title: "Resource Health Watch", desc: "Monitors CPU, RAM & disk spikes" },
-  event_log_system: { title: "System Event Monitor", desc: "Watches Windows System Event Log" },
-  event_log_security: { title: "Security Audit Log", desc: "Deep event log audit (Needs Admin)" },
-  sysmon: { title: "Sysmon Deep Telemetry", desc: "Kernel file & DNS telemetry (Optional)" },
-  defender: { title: "Windows Defender Link", desc: "Syncs Windows Defender verdicts" },
-  registry_run_keys: { title: "Startup & Registry Guard", desc: "Watches persistence Run keys" },
-  pe_parser: { title: "Executable File Inspector", desc: "Static PE header & Authenticode" }
+  processes: { title: "Process & App Monitor", desc: "Live process creation & PCB tracking", icon: "cpu", color: "emerald" },
+  network: { title: "Network Traffic Guard", desc: "Live sockets & network connections", icon: "network", color: "indigo" },
+  resources: { title: "Resource Health Watch", desc: "Monitors CPU, RAM & disk spikes", icon: "activity", color: "purple" },
+  event_log_system: { title: "System Event Monitor", desc: "Watches Windows System Event Log", icon: "layers", color: "cyan" },
+  event_log_security: { title: "Security Audit Log", desc: "Deep event log audit (Needs Admin)", icon: "lock", color: "amber" },
+  sysmon: { title: "Sysmon Deep Telemetry", desc: "Kernel file & DNS telemetry (Optional)", icon: "zap", color: "slate" },
+  defender: { title: "Windows Defender Link", desc: "Syncs Windows Defender verdicts", icon: "shield-check", color: "emerald" },
+  registry_run_keys: { title: "Startup & Registry Guard", desc: "Watches persistence Run keys", icon: "key", color: "cyan" },
+  pe_parser: { title: "Executable File Inspector", desc: "Static PE header & Authenticode", icon: "file-search", color: "amber" }
 };
 
 G.apps.home = {
@@ -34,9 +34,13 @@ G.apps.home = {
 
         // ---- Zone A: Hero Protection Status Banner ----
         const isDegraded = h.status !== "ok" || !h.admin;
-        const heroShield = el("div", { class: "hero-shield-icon" + (isDegraded ? " warn" : "") },
-          isDegraded ? "⚠️" : "🛡️"
+        const heroShield = renderIcon(
+          isDegraded ? "shield-alert" : "shield-check",
+          isDegraded ? "amber" : "emerald",
+          "xl",
+          "hero-shield-frame"
         );
+
         const heroHeadline = el("h2", { class: "hero-headline" },
           isDegraded ? "Protection is Partially Active" : "Your System is Fully Protected"
         );
@@ -46,20 +50,25 @@ G.apps.home = {
             : "All real-time sensors, deterministic threat engines, and audit logs are operating normally."
         );
 
+        const pauseBtn = el("button", {
+          class: "device-chip",
+          style: "cursor:pointer;background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);color:var(--primary);display:inline-flex;align-items:center;gap:6px",
+          onclick: async () => {
+            await api("/collection", { method: "POST", body: { paused: !h.paused } });
+            toast(h.paused ? "Protection resumed" : "Protection paused", "info");
+            draw();
+          }
+        },
+          renderIcon(h.paused ? "play" : "pause", "cyan", "xs"),
+          el("span", {}, h.paused ? "Resume Monitoring" : "Pause Monitoring")
+        );
+
         const heroChips = el("div", { class: "hero-chips" },
           el("div", { class: "device-chip" }, "Host: ", el("b", {}, h.hostname)),
           el("div", { class: "device-chip" }, "OS: ", el("b", {}, `${h.os} (${h.architecture})`)),
           el("div", { class: "device-chip" }, "Uptime: ", el("b", {}, fmt.dur(h.uptime_s))),
           el("div", { class: "device-chip" }, "Engine: ", el("b", {}, "Smart Rules E2–E6")),
-          el("button", {
-            class: "device-chip",
-            style: "cursor:pointer;background:rgba(56,189,248,0.12);border-color:rgba(56,189,248,0.3);color:var(--primary)",
-            onclick: async () => {
-              await api("/collection", { method: "POST", body: { paused: !h.paused } });
-              toast(h.paused ? "Protection resumed" : "Protection paused", "info");
-              draw();
-            }
-          }, h.paused ? "▶ Resume Monitoring" : "⏸ Pause Monitoring")
+          pauseBtn
         );
 
         const heroBanner = el("div", { class: "hero-banner" },
@@ -74,14 +83,20 @@ G.apps.home = {
 
         const resCard = el("div", { class: "bento-card" },
           el("h4", { class: "bento-card-title" },
-            el("span", {}, "System Resources"),
+            el("span", { style: "display:flex;align-items:center;gap:8px" },
+              renderIcon("activity", "purple", "sm"),
+              el("span", {}, "System Resources")
+            ),
             el("span", { class: "dim", style: "font-size:11px;font-weight:400" }, "Live Telemetry")
           ),
           el("div", { class: "resource-list" },
             // CPU
             el("div", { class: "resource-item" },
               el("div", { class: "resource-head" },
-                el("span", { class: "resource-name" }, "Processor (CPU)"),
+                el("span", { class: "resource-name" },
+                  renderIcon("cpu", "cyan", "xs"),
+                  el("span", { style: "margin-left:4px" }, "Processor (CPU)")
+                ),
                 el("span", { class: "resource-meta" }, `${cpuPct}% • ${s.process_count || 0} active processes`)
               ),
               el("div", { class: "progress-track" },
@@ -91,7 +106,10 @@ G.apps.home = {
             // Memory
             el("div", { class: "resource-item" },
               el("div", { class: "resource-head" },
-                el("span", { class: "resource-name" }, "Memory (RAM)"),
+                el("span", { class: "resource-name" },
+                  renderIcon("memory", "amber", "xs"),
+                  el("span", { style: "margin-left:4px" }, "Memory (RAM)")
+                ),
                 el("span", { class: "resource-meta" }, `${fmt.bytes(m.mem_used)} used of ${fmt.bytes(m.mem_total)}`)
               ),
               el("div", { class: "progress-track" },
@@ -101,7 +119,10 @@ G.apps.home = {
             // Storage
             el("div", { class: "resource-item" },
               el("div", { class: "resource-head" },
-                el("span", { class: "resource-name" }, "System Disk"),
+                el("span", { class: "resource-name" },
+                  renderIcon("hard-drive", "indigo", "xs"),
+                  el("span", { style: "margin-left:4px" }, "System Disk")
+                ),
                 el("span", { class: "resource-meta" }, `${fmt.bytes(m.disk_free)} free storage`)
               ),
               el("div", { class: "progress-track" },
@@ -115,23 +136,34 @@ G.apps.home = {
         const shieldsList = Object.entries(h.sources)
           .filter(([k]) => k !== "pe_model")
           .map(([k, v]) => {
-            const meta = SHIELD_MAP[k] || { title: k, desc: v.reason || "" };
+            const meta = SHIELD_MAP[k] || { title: k, desc: v.reason || "", icon: "shield", color: "cyan" };
             const isOk = v.status === "available";
             const isDeg = v.status === "degraded";
             const badgeCls = isOk ? "shield-badge" : isDeg ? "shield-badge warn" : "shield-badge off";
-            const badgeText = isOk ? "● Active" : isDeg ? "▲ Degraded" : "○ Optional";
+            const badgeText = isOk ? "Active" : isDeg ? "Degraded" : "Optional";
+            const badgeIconName = isOk ? "check" : isDeg ? "alert-triangle" : "info";
+
+            const cardIcon = renderIcon(meta.icon, isOk ? meta.color : isDeg ? "amber" : "slate", "sm");
+            const badgeIcon = renderIcon(badgeIconName, isOk ? "emerald" : isDeg ? "amber" : "slate", "xs");
+
             return el("div", { class: "shield-card", title: v.reason || meta.desc },
-              el("div", { class: "shield-info" },
-                el("span", { class: "shield-title" }, meta.title),
-                el("span", { class: "shield-subtitle" }, meta.desc)
+              el("div", { style: "display:flex;align-items:center;gap:10px" },
+                cardIcon,
+                el("div", { class: "shield-info" },
+                  el("span", { class: "shield-title" }, meta.title),
+                  el("span", { class: "shield-subtitle" }, meta.desc)
+                )
               ),
-              el("span", { class: badgeCls }, badgeText)
+              el("span", { class: badgeCls }, badgeIcon, el("span", { style: "margin-left:4px" }, badgeText))
             );
           });
 
         const shieldsCard = el("div", { class: "bento-card" },
           el("h4", { class: "bento-card-title" },
-            el("span", {}, "Protection Shields"),
+            el("span", { style: "display:flex;align-items:center;gap:8px" },
+              renderIcon("shield", "emerald", "sm"),
+              el("span", {}, "Protection Shields")
+            ),
             el("span", { class: "dim", style: "font-size:11px;font-weight:400" }, `${Object.values(h.sources).filter(x => x.status === "available").length} / ${Object.keys(h.sources).length} Active`)
           ),
           el("div", { class: "shield-grid" }, shieldsList)
@@ -150,31 +182,38 @@ G.apps.home = {
                   el("div", { class: "alert-time" }, `${i.process_name || "system"} • ${fmt.ago(i.opened_at)}`)
                 )
               ),
-              el("button", { style: "font-size:11px;padding:3px 8px" }, "Details →")
+              el("button", { style: "font-size:11px;padding:4px 10px;display:flex;align-items:center;gap:4px" },
+                el("span", {}, "Details"),
+                renderIcon("chevron-right", "slate", "xs")
+              )
             ))
-          : el("div", { style: "padding:16px 0;text-align:center;color:var(--ok)" },
-              "✔ No security incidents detected. System is quiet and safe."
+          : el("div", { style: "padding:22px 0;text-align:center;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--ok)" },
+              renderIcon("shield-check", "emerald", "sm"),
+              el("span", { style: "font-weight:500" }, "No security incidents detected. System is quiet and protected.")
             );
 
         const alertsCard = el("div", { class: "bento-card" },
           el("h4", { class: "bento-card-title" },
-            el("span", {}, "Recent Security Alerts"),
+            el("span", { style: "display:flex;align-items:center;gap:8px" },
+              renderIcon("alert-triangle", "amber", "sm"),
+              el("span", {}, "Recent Security Alerts")
+            ),
             el("button", {
-              style: "font-size:11px;padding:2px 8px;background:transparent;border:0;color:var(--primary)",
+              style: "font-size:11px;padding:2px 8px;background:transparent;border:0;color:var(--primary);cursor:pointer",
               onclick: () => WM.open("security")
             }, "View All →")
           ),
           alertsList
         );
 
-        // Quick Actions Grid
+        // Quick Actions Grid (All Framed SVG Icons)
         const quickActions = [
-          { app: "terminal", icon: "💻", title: "Guardian Shell", desc: "Interactive command shell" },
-          { app: "processes", icon: "🌳", title: "Process Tree", desc: "Parent-child hierarchy" },
-          { app: "network", icon: "🌐", title: "Network Flows", desc: "Live sockets & connections" },
-          { app: "security", icon: "🛡️", title: "Security Center", desc: "Incidents & evidence" },
-          { app: "system", icon: "📊", title: "System Monitor", desc: "Telemetry charts" },
-          { app: "models", icon: "📁", title: "File Scanner", desc: "Static PE inspection" },
+          { app: "terminal", icon: "terminal", color: "cyan", title: "Guardian Shell", desc: "Interactive command shell" },
+          { app: "processes", icon: "hierarchy", color: "emerald", title: "Process Tree", desc: "Parent-child hierarchy" },
+          { app: "network", icon: "globe", color: "indigo", title: "Network Flows", desc: "Live sockets & connections" },
+          { app: "security", icon: "shield", color: "rose", title: "Security Center", desc: "Incidents & evidence" },
+          { app: "system", icon: "activity", color: "purple", title: "System Monitor", desc: "Telemetry charts" },
+          { app: "models", icon: "file-search", color: "amber", title: "File Scanner", desc: "Static PE inspection" },
         ];
 
         const actionsGrid = el("div", { class: "action-grid" },
@@ -182,22 +221,28 @@ G.apps.home = {
             class: "action-card",
             onclick: () => WM.open(act.app)
           },
-            el("div", { class: "action-icon" }, act.icon),
+            renderIcon(act.icon, act.color, "md"),
             el("div", { class: "action-title" }, act.title),
             el("div", { class: "action-desc" }, act.desc)
           ))
         );
 
         const actionsCard = el("div", { class: "bento-card" },
-          el("h4", { class: "bento-card-title" }, "Quick OS Navigation"),
+          el("h4", { class: "bento-card-title" },
+            el("span", { style: "display:flex;align-items:center;gap:8px" },
+              renderIcon("layers", "cyan", "sm"),
+              el("span", {}, "Quick OS Navigation")
+            )
+          ),
           actionsGrid
         );
 
         // Optional Sysmon Notice Card
         const notes = [];
         if (h.unavailable.includes("sysmon")) {
-          notes.push(el("div", { class: "note", style: "margin:0" },
-            "💡 Sysmon is optional. Standard process, network, and registry monitoring are fully active. Install Sysmon only if you need low-level kernel DNS query attribution."
+          notes.push(el("div", { class: "note", style: "margin:0;display:flex;align-items:center;gap:10px" },
+            renderIcon("info", "cyan", "xs"),
+            el("span", {}, "Sysmon is optional. Standard process, network, and registry monitoring are fully active. Install Sysmon only if you need low-level kernel DNS query attribution.")
           ));
         }
 
@@ -220,34 +265,43 @@ G.apps.home = {
           }
         },
           el("div", { class: "accordion-title" },
-            "⚙️ OS Kernel Threads & Bounded Event Queue",
+            renderIcon("settings", "cyan", "sm"),
+            el("span", {}, "OS Kernel Threads & Bounded Event Queue"),
             el("span", { class: "device-chip", style: "padding:2px 8px;font-size:11px" }, `${(h.threads || []).length} Background Workers`)
           ),
           el("div", { style: "display:flex;align-items:center;gap:12px" },
             el("span", { class: "accordion-summary" },
               `Queue Fill: ${q.fill_pct || 0}% • ${q.generated || 0} events • ${q.dropped || 0} dropped`
             ),
-            el("span", { class: "accordion-chevron" }, "▼")
+            renderIcon("chevron-down", "slate", "xs", "accordion-chevron")
           )
         );
 
         const accordionContent = el("div", { class: "accordion-content" },
-          // Queue summary stats
           el("div", { class: "grid3", style: "margin-bottom:14px" },
             el("div", { class: "card" },
-              el("h4", {}, "Producer-Consumer Buffer"),
+              el("h4", { style: "display:flex;align-items:center;gap:6px" },
+                renderIcon("database", "cyan", "xs"),
+                el("span", {}, "Producer-Consumer Buffer")
+              ),
               el("div", {}, `Capacity: 10,000 events / 32 MB`),
               el("div", {}, `Current Depth: ${q.depth || 0} events (${q.fill_pct || 0}%)`),
               el("div", { class: "dim" }, `Status: [${(q.state || "ok").toUpperCase()}] • ${fmt.bytes(q.bytes || 0)}`)
             ),
             el("div", { class: "card" },
-              el("h4", {}, "Telemetry Ingestion"),
+              el("h4", { style: "display:flex;align-items:center;gap:6px" },
+                renderIcon("activity", "emerald", "xs"),
+                el("span", {}, "Telemetry Ingestion")
+              ),
               el("div", {}, `Generated: ${q.generated || 0} events`),
               el("div", {}, `Dropped: ${q.dropped || 0} (${q.drop_rate_pct || 0}%)`),
               el("div", { class: "dim" }, `Zero packet loss under normal load`)
             ),
             el("div", { class: "card" },
-              el("h4", {}, "Local SQLite WAL Store"),
+              el("h4", { style: "display:flex;align-items:center;gap:6px" },
+                renderIcon("lock", "purple", "xs"),
+                el("span", {}, "Local SQLite WAL Store")
+              ),
               el("div", {}, `Database: ${fmt.bytes(h.db.size_bytes)}`),
               el("div", {}, `Hash Chain: ${h.db.audit_chain_ok ? "Verified ✔" : "Broken ✖"}`),
               el("div", { class: "dim" }, `Cryptographically verifiable audit log`)
@@ -293,7 +347,7 @@ G.apps.home = {
 };
 
 G.apps.system = {
-  name: "System Monitor", short: "sysmon", icon: "sys", w: 860, h: 600,
+  name: "System Monitor", short: "sysmon", icon: "activity", w: 860, h: 600,
   title: h => `Guardian OS — System Monitor (${h})`,
   mount(body) {
     let alive = true;
@@ -315,21 +369,33 @@ G.apps.system = {
           el("div", { class: "pad" },
             el("div", { class: "grid2" },
               el("div", { class: "card" },
-                el("h4", {}, `CPU Usage ${fmt.pct(last.cpu)} (${last.cpu_count || "?"} Cores)`),
+                el("h4", { style: "display:flex;align-items:center;gap:6px" },
+                  renderIcon("cpu", "cyan", "xs"),
+                  el("span", {}, `CPU Usage ${fmt.pct(last.cpu)} (${last.cpu_count || "?"} Cores)`)
+                ),
                 spark(S.map(s => s.cpu), 380)
               ),
               el("div", { class: "card" },
-                el("h4", {}, `Memory Usage ${fmt.pct(last.mem)} (${fmt.bytes(last.mem_used)})`),
+                el("h4", { style: "display:flex;align-items:center;gap:6px" },
+                  renderIcon("memory", "amber", "xs"),
+                  el("span", {}, `Memory Usage ${fmt.pct(last.mem)} (${fmt.bytes(last.mem_used)})`)
+                ),
                 spark(S.map(s => s.mem), 380)
               )
             ),
             el("div", { class: "grid2", style: "margin-top:14px" },
               el("div", { class: "card" },
-                el("h4", {}, `Network Activity (↓${fmt.bytes(rx[rx.length - 1])}/s  ↑${fmt.bytes(tx[tx.length - 1])}/s)`),
+                el("h4", { style: "display:flex;align-items:center;gap:6px" },
+                  renderIcon("network", "indigo", "xs"),
+                  el("span", {}, `Network Activity (↓${fmt.bytes(rx[rx.length - 1])}/s  ↑${fmt.bytes(tx[tx.length - 1])}/s)`)
+                ),
                 spark(rx, 380, 38, mx)
               ),
               el("div", { class: "card" },
-                el("h4", {}, "Disk Storage & Uptime"),
+                el("h4", { style: "display:flex;align-items:center;gap:6px" },
+                  renderIcon("hard-drive", "purple", "xs"),
+                  el("span", {}, "Disk Storage & Uptime")
+                ),
                 el("div", {}, bar(last.disk)),
                 el("div", { class: "dim", style: "margin-top:6px" }, `Uptime: ${fmt.dur(last.uptime || 0)} • Free: ${fmt.bytes(last.disk_free)}`)
               )

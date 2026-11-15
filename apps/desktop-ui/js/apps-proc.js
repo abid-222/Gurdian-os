@@ -14,7 +14,9 @@ G.apps.processes = {
     const sortSel = el("select", { "aria-label": "sort", onchange: e => { st.sort = e.target.value; load(); } }, sorts.map(s => el("option", { value: s }, s)));
     const treeBtn = el("button", { style: "font-weight:600", onclick: () => toggleTree() });
     function updateTreeBtn() {
-      treeBtn.textContent = st.tree ? "🌳 Process Tree: ON (F5)" : "📋 Table View (F5)";
+      clear(treeBtn);
+      const ico = renderIcon(st.tree ? "hierarchy" : "layers", st.tree ? "emerald" : "slate", "xs");
+      treeBtn.append(ico, el("span", { style: "margin-left:6px" }, st.tree ? "Process Tree: Active (F5)" : "Table View (F5)"));
       if (st.tree) treeBtn.classList.add("st-ok"); else treeBtn.classList.remove("st-ok");
     }
     function toggleTree() {
