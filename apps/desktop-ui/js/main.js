@@ -278,32 +278,22 @@
     };
   }
 
-  // Universal Escape handler:
-  // 1. Closes Command Palette if open
-  // 2. Clears focused search input if text is present
-  // 3. Closes top active desktop window (WM.close) if any window is open
+  // Universal Escape handler (capture phase — fires before ANY element's keydown):
+  // Priority 1 → Close Command Palette
+  // Priority 2 → Close top active WM window (ESC always closes window, don't block on input)
   function handleEscape(e) {
+    // Always stop further propagation so inner inputs cannot swallow ESC
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+
     const palEl = $("#palette");
     if (palEl && !palEl.hidden) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
       palClose();
       return true;
-    }
-
-    const active = document.activeElement;
-    if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
-      if (active.value && active.value.length > 0) {
-        active.value = "";
-        active.dispatchEvent(new Event("input", { bubbles: true }));
-        if (e) { e.preventDefault(); e.stopPropagation(); }
-        return true;
-      }
     }
 
     if (window.WM && Array.isArray(WM.order) && WM.order.length > 0) {
       const topId = WM.order[WM.order.length - 1];
       if (topId && WM.wins && WM.wins.has(topId)) {
-        if (e) { e.preventDefault(); e.stopPropagation(); }
         WM.close(topId);
         return true;
       }
@@ -311,17 +301,16 @@
     return false;
   }
 
-  // Global capture for Escape key
+  // Capture phase — intercepts BEFORE terminal/proc/sec input keydown handlers
   window.addEventListener("keydown", e => {
     if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) {
       handleEscape(e);
     }
-  }, true);
+  }, true /* capture */);
 
   function keys(e) {
-    if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) {
-      if (handleEscape(e)) return;
-    }
+    // ESC already handled in capture phase above — no double handling needed
+    if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) return;
     if ((e.ctrlKey && e.key.toLowerCase() === "k") || (e.altKey && e.code === "Space")) {
       e.preventDefault();
       $("#palette").hidden ? palOpen() : palClose();

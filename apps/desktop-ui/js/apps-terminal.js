@@ -40,7 +40,7 @@ G.apps.terminal = {
       else if (e.key === "ArrowUp") { if (hi > 0) input.value = hist[--hi]; e.preventDefault(); }
       else if (e.key === "ArrowDown") { input.value = hi < hist.length - 1 ? hist[++hi] : ""; hi = Math.min(hi, hist.length); e.preventDefault(); }
       else if (e.key === "Tab") { e.preventDefault(); const m = TERM_CMDS.filter(x => x.startsWith(input.value.toLowerCase())); if (m.length === 1) input.value = m[0] + " "; else if (m.length > 1) print(m.join("  "), "hint"); }
-      else if (e.key === "Escape") { input.value = ""; }
+      // ESC is handled globally in main.js capture phase — do NOT stopPropagation here
       else if (e.ctrlKey && e.key.toLowerCase() === "l") { e.preventDefault(); run("clear"); }
     });
     print(`Smart OS Guardian ${"0.3.0"} — Guardian Shell. Type 'help'. Arbitrary shell execution is disabled by design.`, "hint");
