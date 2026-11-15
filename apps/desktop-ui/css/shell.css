@@ -609,28 +609,39 @@ button, input, select, textarea {
 .titlebar-actions {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 4px;
 }
 .wb {
-  width: 13px;
-  height: 13px;
+  width: 28px;
+  height: 24px;
   padding: 0;
-  border-radius: 50%;
-  border: 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
-  font-weight: 700;
-  color: transparent;
+  color: var(--fg-muted);
   cursor: pointer;
   transition: all 0.15s ease;
 }
-.wb.m { background: #eab308; }
-.wb.x { background: #22c55e; }
-.wb.c { background: #ef4444; }
-.titlebar:hover .wb { color: rgba(0, 0, 0, 0.6); }
-.wb:hover { transform: scale(1.15); }
+.wb svg {
+  display: block;
+  stroke: currentColor;
+}
+.wb:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+.wb.c:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #fff;
+}
+.wb:active {
+  transform: translateY(1px);
+}
 
 .win-body {
   flex: 1;
@@ -1514,4 +1525,150 @@ h3 {
   .bento-grid-2 { grid-template-columns: 1fr; }
   .action-grid { grid-template-columns: repeat(2, 1fr); }
   .shield-grid { grid-template-columns: 1fr; }
+}
+
+/* ==========================================================================
+   EDR Process Tree Graph (CrowdStrike Falcon Style)
+   ========================================================================== */
+.edr-wrap {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  background: #080c14;
+}
+.edr-legend {
+  width: 210px;
+  background: rgba(15, 23, 42, 0.75);
+  border-right: 1px solid var(--border-light);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.edr-legend-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--fg-muted);
+  margin-bottom: 6px;
+}
+.edr-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--fg-main);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.edr-legend-item:hover, .edr-legend-item.on {
+  background: rgba(56, 189, 248, 0.1);
+  color: #fff;
+}
+.edr-canvas-container {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  min-height: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.edr-canvas-inner {
+  position: relative;
+  padding: 30px;
+  min-width: 100%;
+  min-height: 100%;
+}
+.edr-svg-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.edr-nodes-layer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 70px;
+  align-items: flex-start;
+}
+.edr-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 210px;
+}
+.edr-node {
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 210px;
+}
+.edr-node:hover {
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(56, 189, 248, 0.2);
+}
+.edr-node.selected {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.edr-node.has-incident {
+  border-color: rgba(244, 63, 94, 0.5);
+  background: rgba(244, 63, 94, 0.08);
+}
+.edr-node.has-incident:hover, .edr-node.has-incident.selected {
+  border-color: #f43f5e;
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.4), 0 8px 24px rgba(244, 63, 94, 0.25);
+}
+.edr-node-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edr-node-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.edr-node-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+.edr-inspector {
+  width: 330px;
+  background: rgba(15, 23, 42, 0.9);
+  border-left: 1px solid var(--border-light);
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
 }

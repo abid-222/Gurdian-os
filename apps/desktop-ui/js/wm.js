@@ -20,9 +20,15 @@ const WM = {
     const win = el("section", { class: "win", style: `left:${Math.max(10, (opts.x ?? 30 + n * 28))}px;top:${Math.max(10, (opts.y ?? 20 + n * 26))}px;width:${w}px;height:${h}px`, dataset: { id }, "aria-label": app.title });
     const ttl = el("div", { class: "ttl" }, app.title(document.body.dataset.host || "host"));
     const actions = el("div", { class: "titlebar-actions" },
-      el("button", { class: "wb m", title: "Minimise", "aria-label": "Minimise", onclick: e => { e.stopPropagation(); this.minimize(id); } }, "–"),
-      el("button", { class: "wb x", title: "Maximise", "aria-label": "Maximise", onclick: e => { e.stopPropagation(); this.toggleMax(id); } }, "□"),
-      el("button", { class: "wb c", title: "Close", "aria-label": "Close", onclick: e => { e.stopPropagation(); this.close(id); } }, "×")
+      el("button", { class: "wb m", title: "Minimize", "aria-label": "Minimize", onclick: e => { e.stopPropagation(); this.minimize(id); } },
+        svgRaw("minimize", { width: "11", height: "11" })
+      ),
+      el("button", { class: "wb x", title: "Maximize / Restore", "aria-label": "Maximize / Restore", onclick: e => { e.stopPropagation(); this.toggleMax(id); } },
+        svgRaw("maximize", { width: "10", height: "10" })
+      ),
+      el("button", { class: "wb c", title: "Close (Esc)", "aria-label": "Close", onclick: e => { e.stopPropagation(); this.close(id); } },
+        svgRaw("x", { width: "11", height: "11" })
+      )
     );
     const iconFrame = renderIcon(this.alias(app.icon), "cyan", "xs", "win-titlebar-icon");
     const bar = el("div", { class: "titlebar" }, iconFrame, ttl, actions);

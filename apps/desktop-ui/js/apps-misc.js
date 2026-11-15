@@ -84,21 +84,64 @@ G.apps.models = {
 
       pathIn.addEventListener("keydown", e => { if (e.key === "Enter") scan(); });
 
+      const quickSamples = [
+        "C:\\Windows\\explorer.exe",
+        "C:\\Windows\\System32\\notepad.exe",
+        "C:\\Windows\\System32\\cmd.exe",
+        "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      ];
+
+      const sampleButtons = el("div", { style: "display:flex;gap:6px;align-items:center;margin:8px 0;flex-wrap:wrap" },
+        el("span", { class: "dim", style: "font-size:12px" }, "Quick Test Targets:"),
+        ...quickSamples.map(target => el("button", {
+          class: "btn-subtle xs cyan",
+          style: "font-size:11px;padding:3px 8px;font-family:var(--font-mono)",
+          title: "Scan " + target,
+          onclick: () => {
+            pathIn.value = target;
+            scan();
+          }
+        }, target.split("\\").pop()))
+      );
+
       clear(body).append(el("div", { class: "pad" },
-        el("div", { class: "card" },
-          el("h4", {}, "File Intelligence & Static Inspection"),
-          el("div", { class: "dim", style: "margin-bottom:8px" }, "Files are strictly read and parsed statically — never executed. Extracts SHA-256 hash, PE header sections, Shannon entropy, imports table, Authenticode signer, and NTFS Mark-of-the-Web Zone.Identifier stream."),
-          el("div", { style: "display:flex;gap:6px" }, pathIn, el("button", { onclick: scan }, "Scan File")),
+        el("div", { class: "card", style: "padding:16px" },
+          el("div", { style: "display:flex;align-items:center;gap:8px;margin-bottom:6px" },
+            renderIcon("file-search", "cyan", "sm"),
+            el("h4", { style: "margin:0;font-size:15px;color:#fff" }, "File Intelligence & Static PE Inspection"),
+            el("span", { class: "badge emerald", style: "font-size:10px" }, "Safe: Zero Detonation")
+          ),
+          el("div", { class: "dim", style: "margin-bottom:12px;font-size:12.5px;line-height:1.5" },
+            "Files are analyzed strictly via static header parsing — never executed. Extracts SHA-256 cryptographic hash, PE header sections, Shannon entropy, API imports table, Authenticode digital signature, and NTFS Mark-of-the-Web (Zone.Identifier) stream."
+          ),
+          sampleButtons,
+          el("div", { style: "display:flex;gap:8px;align-items:center;margin-top:6px" },
+            pathIn,
+            el("button", { class: "btn-primary", style: "white-space:nowrap;padding:8px 16px;cursor:pointer", onclick: scan }, "🔍 Inspect File")
+          ),
           out
         ),
-        el("h3", { style: "margin-top:14px" }, "E1 Machine Learning Slot"),
-        a ? kv([["model", a.model_id], ["version", a.version], ["status", m.validated ? "validated - counts as E1 evidence" : "NOT validated - scores shown, never counted as evidence"], ["feature schema", a.feature_schema_version], ["sha256", fmt.short(a.hash, 32)],
-                ["high threshold", a.threshold_high], ["calibrated", a.calibrated ? "yes" : "no"], ["trained on", a.trained_on || "—"]])
-          : el("div", { class: "note" }, "Not installed (optional) — running rules E2–E6"),
-        m.warning ? el("div", { class: "note" }, m.warning) : null,
-        el("h3", { style: "margin-top:14px" }, "Feature Extractor"),
-        kv([["schema", m.extractor_schema], ["status", m.extractor.available ? "ready" : "Not installed (optional) — " + fmt.short(m.extractor.reason, 120)]]),
-        el("div", { class: "dim", style: "margin-top:10px" }, m.note)
+
+        el("div", { class: "card", style: "margin-top:14px;padding:14px" },
+          el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:var(--primary)" },
+            renderIcon("shield-check", "cyan", "xs"),
+            el("span", {}, "Detection Engine & Intelligence Architecture")
+          ),
+          el("div", { class: "grid3", style: "gap:10px" },
+            el("div", { style: "background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;font-size:12px" },
+              el("strong", { style: "color:#34d399;display:block;margin-bottom:3px" }, "✔ Deterministic Rules E2–E6:"),
+              el("span", { class: "dim" }, "Active real-time temporal correlation across process lineage, parent-child anomalies, persistence, and network connections.")
+            ),
+            el("div", { style: "background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;font-size:12px" },
+              el("strong", { style: "color:#38bdf8;display:block;margin-bottom:3px" }, "✔ Static Heuristic Engine:"),
+              el("span", { class: "dim" }, "Shannon entropy calculation, suspicious W+X sections detection, Authenticode signature check, and memory injection API spotting.")
+            ),
+            el("div", { style: "background:rgba(255,255,255,0.02);padding:10px;border-radius:8px;font-size:12px" },
+              el("strong", { style: "color:#c084fc;display:block;margin-bottom:3px" }, a ? "✔ E1 ML Static Model:" : "ℹ E1 Model Slot:"),
+              el("span", { class: "dim" }, a ? `${a.model_id} v${a.version} loaded and scoring` : "Rules-first architecture. Deterministic behavioral security operates with zero ML dependency.")
+            )
+          )
+        )
       ));
     };
     render().catch(e => body.append(el("div", { class: "pad st-bad" }, e.message)));
@@ -111,50 +154,193 @@ G.apps.settings = {
   mount(body) {
     let alive = true;
     async function draw() {
-      const [p, al, au, h, qr] = await Promise.all([api("/settings/privacy"), api("/allowlist"), api("/audit?limit=30"), api("/health"), api("/quarantine")]);
-      const tog = (k, label, note) => el("label", { style: "display:flex;gap:8px;margin:4px 0", title: note }, el("input", { type: "checkbox", checked: p[k], onchange: async e => { await api("/settings/privacy", { method: "PUT", body: { [k]: e.target.checked } }); toast(`${k} = ${e.target.checked} (applied now)`); } }), label);
-      const filteredSources = Object.entries(h.sources).filter(([k, v]) => k !== "pe_model" || v.status === "available");
-      clear(body).append(el("div", { class: "pad" },
-        el("h3", {}, "Privacy & telemetry"),
-        el("div", { class: "card" }, tog("store_command_lines", "Store command lines (secrets are always redacted)"), tog("redact_paths", "Redact user names in paths"), tog("collect_network", "Collect connection metadata"), tog("collect_registry", "Watch startup (Run) keys"), tog("response_actions_enabled", "Allow response actions (terminate / suspend / quarantine - always confirmed by you, never automatic)"),
-          el("label", {}, "Raw event retention (days) ", el("input", { type: "number", min: 1, max: 90, value: p.retention_days_events, style: "width:70px", onchange: async e => { await api("/settings/privacy", { method: "PUT", body: { retention_days_events: +e.target.value } }); } })),
-          el("div", { class: "dim", style: "margin-top:6px" }, "All telemetry stays 100% local in SQLite WAL storage. No documents, browser content or keystrokes are ever collected.")),
-        el("h3", { style: "margin-top:14px" }, "Telemetry sources"),
-        table([{ label: "SOURCE", render: r => r[0] }, { label: "STATE", render: r => el("span", { class: statusCls(r[1].status) }, statusMark(r[1].status) + " " + r[1].status) }, { label: "DETAIL", render: r => fmt.short(r[1].reason, 90) }], filteredSources),
-        el("h3", { style: "margin-top:14px" }, "Quarantine"),
-        qr.items.length ? table([{ k: "name", label: "FILE" }, { label: "ORIGINAL PATH", render: r => fmt.short(r.original_path, 50) }, { label: "WHEN", render: r => fmt.datetime(r.ts) },
-          { label: "", render: r => el("button", { onclick: async () => { try { const x = await api(`/quarantine/${r.id}/restore`, { method: "POST", body: {} }); toast("restored to " + x.restored_to); } catch (e) { toast(e.message, "high"); } draw(); } }, "restore") }], qr.items) : el("div", { class: "dim" }, "nothing in quarantine"),
-        el("h3", { style: "margin-top:14px" }, "Allowlist"),
-        al.items.length ? table([{ k: "kind", label: "KIND" }, { label: "VALUE", render: r => fmt.short(r.value, 60) }, { k: "reason", label: "REASON" }, { label: "", render: r => el("button", { onclick: async () => { await api(`/allowlist?kind=${r.kind}&value=${encodeURIComponent(r.value)}`, { method: "DELETE" }); draw(); } }, "remove") }], al.items) : el("div", { class: "dim" }, "empty"),
-        el("h3", { style: "margin-top:14px" }, "Your data"),
-        el("div", { style: "display:flex;gap:8px;flex-wrap:wrap" },
-          el("button", { onclick: async () => download("guardian_export.json", await api("/export")) }, "export investigations (json)"),
-          el("button", { onclick: async () => { await api("/collection", { method: "POST", body: { paused: !h.paused } }); toast(h.paused ? "resumed" : "paused"); draw(); } }, h.paused ? "resume collection" : "pause collection"),
-          el("button", { class: "danger", onclick: async () => {
-            confirmDialog({
-              title: "Wipe All Local Telemetry",
-              message: "This will permanently delete all raw events, detections, snapshots, network flows, and incident records from local storage. The database schema and settings will be preserved.",
-              confirmPrompt: "Type DELETE in capital letters to confirm:",
-              placeholder: "DELETE",
-              onConfirm: async (val) => {
-                if (val !== "DELETE") {
-                  toast("Wipe aborted: confirmation text did not match DELETE", "high");
-                  return;
+      if (!alive) return;
+      try {
+        const [p, al, au, h, qr] = await Promise.all([
+          api("/settings/privacy"),
+          api("/allowlist"),
+          api("/audit?limit=30"),
+          api("/health"),
+          api("/quarantine")
+        ]);
+
+        const tog = (k, label, note) => el("label", { style: "display:flex;gap:8px;margin:5px 0;align-items:center;cursor:pointer", title: note },
+          el("input", {
+            type: "checkbox",
+            checked: p[k],
+            onchange: async e => {
+              await api("/settings/privacy", { method: "PUT", body: { [k]: e.target.checked } });
+              toast(`${k} = ${e.target.checked} (applied now)`);
+            }
+          }),
+          el("span", { style: "font-size:13px" }, label)
+        );
+
+        const filteredSources = Object.entries(h.sources || {}).filter(([k, v]) => k !== "pe_model" || v.status === "available");
+
+        const getSourceBadge = s => {
+          const isOk = s === "available" || s === "ok";
+          const isDeg = s === "degraded";
+          const cls = isOk ? "emerald" : isDeg ? "amber" : "slate";
+          return el("span", { class: `badge ${cls}`, style: "font-size:11px" }, (isOk ? "✔ " : isDeg ? "⚠ " : "✖ ") + s);
+        };
+
+        clear(body).append(el("div", { class: "pad" },
+          el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:var(--primary)" },
+              renderIcon("shield", "cyan", "xs"),
+              el("span", {}, "Privacy & Local Telemetry")
+            ),
+            tog("store_command_lines", "Store process command lines (sensitive tokens/passwords automatically redacted)"),
+            tog("redact_paths", "Redact user profile names in absolute file paths"),
+            tog("collect_network", "Collect outbound and inbound TCP connection metadata"),
+            tog("collect_registry", "Monitor startup persistence (Windows Run / RunOnce keys)"),
+            tog("response_actions_enabled", "Enable incident response capabilities (terminate, suspend, quarantine — always user-confirmed)"),
+            el("div", { style: "display:flex;align-items:center;gap:8px;margin-top:10px" },
+              el("label", { style: "font-size:13px" }, "Raw event retention (days): "),
+              el("input", {
+                type: "number",
+                min: 1,
+                max: 90,
+                value: p.retention_days_events || 7,
+                style: "width:75px",
+                onchange: async e => {
+                  await api("/settings/privacy", { method: "PUT", body: { retention_days_events: +e.target.value } });
+                  toast("Retention updated: " + e.target.value + " days");
                 }
-                try {
-                  await api("/data", { method: "DELETE", body: { confirm: "DELETE" } });
-                  toast("Local telemetry deleted cleanly", "low");
+              })
+            ),
+            el("div", { class: "dim", style: "margin-top:8px;font-size:12px" },
+              "🔒 Absolute Data Privacy: All telemetry stays 100% local inside the SQLite WAL database. No network beaconing, cloud telemetry, keystroke logging, or document contents are ever collected."
+            )
+          ),
+
+          el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#38bdf8" },
+              renderIcon("activity", "cyan", "xs"),
+              el("span", {}, "Telemetry Collectors & Sensor Shields")
+            ),
+            table([
+              { label: "SENSOR / SOURCE", render: r => el("code", { style: "font-weight:600" }, r[0]) },
+              { label: "STATUS", render: r => getSourceBadge(r[1].status) },
+              { label: "OPERATIONAL DETAIL", render: r => el("span", { class: "dim", style: "font-size:12px" }, r[1].reason || "Active and healthy") }
+            ], filteredSources)
+          ),
+
+          el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#a855f7" },
+              renderIcon("box", "purple", "xs"),
+              el("span", {}, "Quarantined Files")
+            ),
+            (qr.items && qr.items.length) ? table([
+              { k: "name", label: "FILE" },
+              { label: "ORIGINAL PATH", render: r => fmt.short(r.original_path, 50) },
+              { label: "WHEN", render: r => fmt.datetime(r.ts) },
+              { label: "", render: r => el("button", {
+                class: "btn-subtle xs cyan",
+                onclick: async () => {
+                  try {
+                    const x = await api(`/quarantine/${r.id}/restore`, { method: "POST", body: {} });
+                    toast("Restored to " + x.restored_to);
+                    draw();
+                  } catch (e) {
+                    toast(e.message, "high");
+                  }
+                }
+              }, "Restore") }
+            ], qr.items) : el("div", { class: "dim", style: "font-size:12px" }, "No files currently quarantined.")
+          ),
+
+          el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#10b981" },
+              renderIcon("shield-check", "emerald", "xs"),
+              el("span", {}, "Allowlisted Entities")
+            ),
+            (al.items && al.items.length) ? table([
+              { k: "kind", label: "KIND" },
+              { label: "VALUE", render: r => fmt.short(r.value, 60) },
+              { k: "reason", label: "REASON" },
+              { label: "", render: r => el("button", {
+                class: "btn-subtle xs rose",
+                onclick: async () => {
+                  await api(`/allowlist?kind=${r.kind}&value=${encodeURIComponent(r.value)}`, { method: "DELETE" });
+                  toast("Removed from allowlist");
                   draw();
-                } catch (e) {
-                  toast(e.message, "high");
                 }
-              }
-            });
-          } }, "delete local data…")),
-        el("h3", { style: "margin-top:14px" }, `Audit log  ${au.chain_ok ? "(hash chain verified ✔)" : "(CHAIN BROKEN ✖)"}`),
-        table([{ label: "TIME", render: r => fmt.datetime(r.ts) }, { k: "actor", label: "ACTOR" }, { k: "action", label: "ACTION" }, { label: "TARGET", render: r => fmt.short(r.target, 40) }, { k: "result", label: "RESULT" }], au.items.slice(0, 15)),
-        el("div", { class: "dim", style: "margin-top:12px" }, `Smart OS Guardian ${h.version} · API loopback only · session token rotates at each start · data: ${h.db.path}`)));
+              }, "Remove") }
+            ], al.items) : el("div", { class: "dim", style: "font-size:12px" }, "Allowlist is empty.")
+          ),
+
+          el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#f59e0b" },
+              renderIcon("database", "amber", "xs"),
+              el("span", {}, "Data Management & Storage Actions")
+            ),
+            el("div", { style: "display:flex;gap:8px;flex-wrap:wrap" },
+              el("button", {
+                class: "btn-subtle sm cyan",
+                onclick: async () => download("guardian_export.json", await api("/export"))
+              }, "Export Investigations (JSON)"),
+              el("button", {
+                class: "btn-subtle sm",
+                onclick: async () => {
+                  await api("/collection", { method: "POST", body: { paused: !h.paused } });
+                  toast(h.paused ? "Collection resumed" : "Collection paused");
+                  draw();
+                }
+              }, h.paused ? "▶ Resume Collection" : "⏸ Pause Collection"),
+              el("button", {
+                class: "btn-subtle sm rose",
+                onclick: async () => {
+                  confirmDialog({
+                    title: "Wipe All Local Telemetry",
+                    message: "This will permanently delete all raw events, detections, snapshots, network flows, and incident records from local storage. The database schema and settings will be preserved.",
+                    confirmPrompt: "Type DELETE in capital letters to confirm:",
+                    placeholder: "DELETE",
+                    onConfirm: async (val) => {
+                      if (val !== "DELETE") {
+                        toast("Wipe aborted: confirmation text did not match DELETE", "high");
+                        return;
+                      }
+                      try {
+                        await api("/data", { method: "DELETE", body: { confirm: "DELETE" } });
+                        toast("Local telemetry deleted cleanly", "low");
+                        draw();
+                      } catch (e) {
+                        toast(e.message, "high");
+                      }
+                    }
+                  });
+                }
+              }, "🗑 Delete Local Telemetry…")
+            )
+          ),
+
+          el("div", { class: "card", style: "padding:16px" },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:var(--fg-main)" },
+              renderIcon("lock", "cyan", "xs"),
+              el("span", {}, `Cryptographic Audit Log ${au.chain_ok ? "(Hash Chain Verified ✔)" : "(CHAIN BROKEN ✖)"}`)
+            ),
+            table([
+              { label: "TIME", render: r => fmt.datetime(r.ts) },
+              { k: "actor", label: "ACTOR" },
+              { k: "action", label: "ACTION" },
+              { label: "TARGET", render: r => fmt.short(r.target, 40) },
+              { k: "result", label: "RESULT" }
+            ], (au.items || []).slice(0, 15)),
+            el("div", { class: "dim", style: "margin-top:12px;font-size:11.5px" },
+              `Smart OS Guardian ${h.version} · API loopback only · session token rotates on start · DB: ${h.db.path}`
+            )
+          )
+        ));
+      } catch (err) {
+        console.error("Settings error:", err);
+        clear(body).append(
+          el("div", { class: "pad st-bad" }, "Settings load error: " + err.message)
+        );
+      }
     }
-    draw().catch(() => { }); return { destroy() { alive = false; } };
+    draw();
+    return { destroy() { alive = false; } };
   },
 };
