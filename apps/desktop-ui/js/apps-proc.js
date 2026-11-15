@@ -185,7 +185,7 @@ G.apps.processes = {
             style: "padding:1px 6px;font-size:10px",
             onclick: async () => {
               try {
-                await api("/simulate", { method: "POST", body: { scenario: "payroll_edr_threat" } });
+                await api("/simulate/payroll_edr_threat", { method: "POST" });
                 toast("Simulated Falcon benchmark threat: payroll.exe loaded", "high");
                 load();
               } catch (err) {
