@@ -2,7 +2,7 @@
 const TERM_CMDS = ["help", "status", "sources", "system", "processes", "alerts", "timeline", "scan", "models", "privacy", "version", "neofetch", "clear", "exit", "pstree", "threads", "sleep", "echo", "cat", "ls", "grep", "head", "tail", "wc", "sort", "jobs", "fg", "bg", "kill"];
 
 G.apps.terminal = {
-  name: "Guardian Shell", short: "term", icon: "term", w: 780, h: 480, flush: true, title: h => `guardian@${h}: ~ (Guardian Shell)`,
+  name: "Guardian Shell", short: "term", icon: "term", w: 820, h: 500, flush: true, title: h => `Guardian OS — Terminal Shell (${h})`,
   mount(body, rec) {
     const hostname = document.body.dataset.host || "host";
     const out = el("div", { class: "term", tabindex: "-1" });

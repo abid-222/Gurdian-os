@@ -5,7 +5,7 @@ function download(name, obj) {
 }
 
 G.apps.processes = {
-  name: "Process Center", short: "procs", icon: "proc", w: 1000, h: 600, flush: true, title: h => `guardian@${h}: ~/processes (htop)`,
+  name: "Process Center", short: "procs", icon: "proc", w: 1040, h: 620, flush: true, title: h => `Guardian OS — Process Center (${h})`,
   mount(body) {
     const st = { sort: "rss", order: "desc", q: "", tree: true, sel: null, items: [], alive: true };
     const sorts = ["rss", "cpu", "pid", "name", "start_ts"];
@@ -113,7 +113,7 @@ G.apps.processes = {
 };
 
 G.apps.network = {
-  name: "Network Center", short: "net", icon: "net", w: 940, h: 520, flush: true, title: h => `guardian@${h}: ~/network (ss -tunap)`,
+  name: "Network Center", short: "net", icon: "net", w: 980, h: 540, flush: true, title: h => `Guardian OS — Network Center (${h})`,
   mount(body) {
     const st = { q: "", tab: "live", alive: true, rows: [] };
     const tbl = el("div", { style: "flex:1;overflow:auto" });

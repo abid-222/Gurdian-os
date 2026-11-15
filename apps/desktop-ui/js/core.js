@@ -28,13 +28,18 @@ const fmt = {
   short(s, n = 60) { s = s || ""; return s.length > n ? s.slice(0, n - 1) + "…" : s; },
 };
 
-/* Severity: colour AND glyph AND text — never colour alone (proposal 4.1) */
+/* Severity: colour AND glyph AND text — modern humanized badges */
 const SEV = {
-  informational: { glyph: "ℹ", label: "INFO", cls: "sev-info" }, low: { glyph: "▼", label: "LOW", cls: "sev-low" },
-  medium: { glyph: "◆", label: "MEDIUM", cls: "sev-med" }, high: { glyph: "▲", label: "HIGH", cls: "sev-high" },
-  critical: { glyph: "⬢", label: "CRITICAL", cls: "sev-crit" },
+  informational: { glyph: "ℹ", label: "Info", cls: "sev-info" },
+  low: { glyph: "●", label: "Low Risk", cls: "sev-low" },
+  medium: { glyph: "▲", label: "Medium", cls: "sev-med" },
+  high: { glyph: "⚠️", label: "High Risk", cls: "sev-high" },
+  critical: { glyph: "🚨", label: "Critical", cls: "sev-crit" },
 };
-const sevChip = s => { const d = SEV[s] || SEV.informational; return el("span", { class: "chip " + d.cls }, d.glyph + " " + d.label); };
+const sevChip = s => {
+  const d = SEV[s] || SEV.informational;
+  return el("span", { class: "badge " + d.cls }, el("span", { class: "badge-dot" }), d.label);
+};
 
 async function api(path, opts = {}) {
   const o = { method: opts.method || "GET", headers: { "X-Guardian-Token": G.token } };
@@ -82,9 +87,14 @@ function table(cols, rows, { onRow, rowCls, selected } = {}) {
 }
 
 function bar(pct, width = 20, label = "") {
-  const p = Math.max(0, Math.min(100, pct || 0)), n = Math.round(p / 100 * width);
+  const p = Math.max(0, Math.min(100, pct || 0));
   const cls = p > 85 ? "bar-hi" : p > 60 ? "bar-mid" : "bar-ok";
-  return el("span", { class: "asciibar " + cls, title: label || fmt.pct(p) }, "[", el("i", {}, "█".repeat(n)), "░".repeat(width - n), "] ", fmt.pct(p));
+  return el("div", { class: "progress-pill", title: label || fmt.pct(p) },
+    el("div", { class: "progress-track" },
+      el("div", { class: "progress-fill " + cls, style: `width:${p}%` })
+    ),
+    el("span", { class: "progress-val" }, fmt.pct(p))
+  );
 }
 
 function spark(values, w = 220, h = 38, max = 100) {

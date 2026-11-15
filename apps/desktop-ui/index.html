@@ -3,42 +3,111 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>guardian — Smart OS Guardian</title>
+<title>Guardian OS — Desktop Security & Telemetry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/shell.css">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f1418'/%3E%3Cpath d='M16 4 6 8v8c0 6 4 10 10 12 6-2 10-6 10-12V8z' fill='none' stroke='%232dd4bf' stroke-width='2'/%3E%3Cpath d='M11 15l4 4 7-8' fill='none' stroke='%232dd4bf' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f1418'/%3E%3Cpath d='M16 4 6 8v8c0 6 4 10 10 12 6-2 10-6 10-12V8z' fill='none' stroke='%2310b981' stroke-width='2'/%3E%3Cpath d='M11 15l4 4 7-8' fill='none' stroke='%2310b981' stroke-width='2'/%3E%3C/svg%3E">
 </head>
 <body>
 <div id="boot" aria-live="polite"></div>
+
 <div id="lock" hidden>
-  <pre class="lock-box">
-<b>guardian: authentication required</b>
-The session token was not supplied. Start Guardian with run.bat
-(it opens this window with the token) or paste the token below.
-<input id="tokenIn" placeholder="session token" autocomplete="off" spellcheck="false"><button id="tokenBtn">unlock</button></pre>
+  <div class="lock-card">
+    <div class="lock-icon-wrap">
+      <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="3" ry="3"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    </div>
+    <h2>Guardian Authentication Required</h2>
+    <p>The local API session token was not supplied. Start Guardian with <code>run.bat</code> (which opens this workstation automatically) or paste your session token below.</p>
+    <div class="lock-form">
+      <input id="tokenIn" placeholder="Paste session token here..." autocomplete="off" spellcheck="false">
+      <button id="tokenBtn" class="primary-btn">Unlock Workstation</button>
+    </div>
+    <div class="lock-hint">
+      Token is safely held in <code>%LOCALAPPDATA%\SmartOSGuardian\runtime.json</code>.
+    </div>
+  </div>
 </div>
+
 <div id="shell" hidden>
+  <!-- Floating Glass Top Navigation Frame -->
   <header id="panel" role="banner">
-    <button id="menuBtn" class="p-btn" title="Applications (Ctrl+K)" aria-label="Applications menu">◉ Guardian</button>
-    <nav id="workspaces" aria-label="Open windows"></nav>
+    <div class="brand">
+      <button id="menuBtn" class="brand-btn" title="Command Palette & Applications (Ctrl+K)" aria-label="Applications menu">
+        <span class="brand-logo">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M12 2L3 7v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V7l-9-5z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </span>
+        <span class="brand-text">Guardian OS</span>
+      </button>
+    </div>
+
+    <!-- Friendly Status Banner Pill -->
     <div id="banner" role="status"></div>
-    <div id="clock" aria-label="Clock"></div>
+
+    <!-- Center Workspace / Window Switcher Tabs -->
+    <nav id="workspaces" class="segmented-control" aria-label="Open windows"></nav>
+
+    <div class="panel-spacer"></div>
+
+    <!-- Right Tray: Live Metric Pills & Clock -->
     <div id="tray">
-      <span id="tCpu" title="CPU">cpu --</span><span id="tMem" title="Memory">mem --</span>
-      <span id="tSrc" title="Telemetry sources">src --</span><span id="tUser"></span>
-      <button id="themeBtn" class="p-btn" title="Toggle light/dark" aria-label="Toggle theme">◐</button>
+      <div class="tray-pill" id="tCpuPill" title="Live CPU Usage">
+        <span class="tray-dot dot-cpu"></span>
+        <span id="tCpu">CPU --%</span>
+      </div>
+      <div class="tray-pill" id="tMemPill" title="Live Memory Usage">
+        <span class="tray-dot dot-mem"></span>
+        <span id="tMem">RAM --%</span>
+      </div>
+      <div class="tray-pill" id="tSrcPill" title="Active Sensor Shields">
+        <span class="tray-dot dot-src"></span>
+        <span id="tSrc">Shields --</span>
+      </div>
+      <span id="tUser" class="tray-user"></span>
+      <div id="clock" class="tray-clock" aria-label="Clock"></div>
+      <button id="themeBtn" class="theme-btn" title="Toggle Theme" aria-label="Toggle theme">◐</button>
     </div>
   </header>
+
+  <!-- Left Floating Dock Frame -->
   <aside id="dock" aria-label="Application dock"></aside>
+
+  <!-- Desktop Workstation Area -->
   <main id="desktop">
-    <pre id="conky" aria-hidden="true"></pre>
+    <div id="desktopGlow"></div>
     <div id="windows"></div>
   </main>
-  <footer id="tmux" role="contentinfo"><span id="tmuxL"></span><span id="tmuxR"></span></footer>
-  <div id="palette" hidden role="dialog" aria-label="Command palette">
-    <div class="pal-box"><input id="palIn" placeholder="run: app or guardian command…" autocomplete="off" spellcheck="false"><ul id="palList"></ul></div>
+
+  <!-- Hidden compatibility hooks for existing script bindings -->
+  <div id="tmux" style="display:none !important;" aria-hidden="true">
+    <span id="tmuxL"></span><span id="tmuxR"></span>
   </div>
+
+  <!-- Command Palette Modal -->
+  <div id="palette" hidden role="dialog" aria-label="Command palette">
+    <div class="pal-box">
+      <div class="pal-search-wrap">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="palIn" placeholder="Search applications, OS tools, or guardian commands..." autocomplete="off" spellcheck="false">
+        <kbd class="pal-kbd">ESC</kbd>
+      </div>
+      <ul id="palList"></ul>
+    </div>
+  </div>
+
+  <!-- Toast Notification Center -->
   <div id="toasts" aria-live="polite"></div>
 </div>
+
 <script src="js/core.js"></script>
 <script src="js/wm.js"></script>
 <script src="js/apps-home.js"></script>

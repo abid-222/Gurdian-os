@@ -1,7 +1,7 @@
 "use strict";
 
 G.apps.models = {
-  name: "File Scanner & PE Metadata Inspector", short: "scan", icon: "model", w: 820, h: 580, title: h => `guardian@${h}: ~/file-intelligence`,
+  name: "File Scanner", short: "scan", icon: "model", w: 860, h: 600, title: h => `Guardian OS — File Scanner (${h})`,
   mount(body) {
     let alive = true;
     const render = async () => {
@@ -71,7 +71,7 @@ G.apps.models = {
 };
 
 G.apps.settings = {
-  name: "Settings & Privacy", short: "cfg", icon: "cfg", w: 820, h: 620, title: h => `guardian@${h}: ~/settings`,
+  name: "Settings & Privacy", short: "cfg", icon: "cfg", w: 860, h: 640, title: h => `Guardian OS — Settings & Privacy (${h})`,
   mount(body) {
     let alive = true;
     async function draw() {
