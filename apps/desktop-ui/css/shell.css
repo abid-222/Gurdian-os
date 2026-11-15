@@ -1128,6 +1128,12 @@ button, input, select, textarea {
 .sev-med { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn); }
 .sev-high { background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.35); color: #f97316; }
 .sev-crit { background: var(--crit-bg); border: 1px solid var(--crit-border); color: var(--crit); }
+.badge.emerald { background: rgba(16, 185, 129, 0.15) !important; border: 1px solid rgba(16, 185, 129, 0.35) !important; color: #34d399 !important; }
+.badge.amber { background: rgba(245, 158, 11, 0.15) !important; border: 1px solid rgba(245, 158, 11, 0.35) !important; color: #fbbf24 !important; }
+.badge.cyan { background: rgba(56, 189, 248, 0.15) !important; border: 1px solid rgba(56, 189, 248, 0.35) !important; color: #38bdf8 !important; }
+.badge.rose { background: rgba(244, 63, 94, 0.15) !important; border: 1px solid rgba(244, 63, 94, 0.35) !important; color: #fda4af !important; }
+.badge.purple { background: rgba(168, 85, 247, 0.15) !important; border: 1px solid rgba(168, 85, 247, 0.35) !important; color: #c084fc !important; }
+.badge.slate { background: rgba(148, 163, 184, 0.15) !important; border: 1px solid rgba(148, 163, 184, 0.3) !important; color: #94a3b8 !important; }
 
 .chip {
   display: inline-block;

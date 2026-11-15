@@ -5,11 +5,14 @@ const G = { token: null, apps: {}, state: { health: null, summary: null, history
 function el(tag, attrs, ...kids) {
   const n = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
-    if (v === null || v === undefined || v === false) continue;
+    if (v === null || v === undefined) continue;
     if (k === "class") n.className = v;
     else if (k === "text") n.textContent = v;
     else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
     else if (k === "dataset") Object.assign(n.dataset, v);
+    else if (k === "checked" || k === "disabled" || k === "readOnly") { n[k] = Boolean(v); if (v) n.setAttribute(k, ""); else n.removeAttribute(k); }
+    else if (k === "value") { n.value = v; n.setAttribute("value", v); }
+    else if (v === false) continue;
     else n.setAttribute(k, v === true ? "" : v);
   }
   for (const c of kids.flat()) if (c !== null && c !== undefined && c !== false) n.append(c.nodeType ? c : document.createTextNode(String(c)));
@@ -218,6 +221,12 @@ function spark(values, w = 220, h = 38, max = 100) {
 }
 
 function kv(rows) { return el("dl", { class: "kv" }, rows.filter(Boolean).flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v === undefined || v === null || v === "" ? "—" : v)])); }
+
+function download(name, obj) {
+  const data = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+  const a = el("a", { href: URL.createObjectURL(new Blob([data], { type: "application/json" })), download: name });
+  document.body.append(a); a.click(); a.remove();
+}
 
 // Guarded, user-initiated response (terminate / suspend / resume / quarantine).
 // Replaces blocking window.prompt with a sleek non-blocking modal dialog.

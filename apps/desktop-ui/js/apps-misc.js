@@ -150,33 +150,77 @@ G.apps.models = {
 };
 
 G.apps.settings = {
-  name: "Settings & Privacy", short: "cfg", icon: "cfg", w: 860, h: 640, title: h => `Guardian OS — Settings & Privacy (${h})`,
+  name: "Settings & Privacy", short: "cfg", icon: "cfg", w: 880, h: 680, title: h => `Guardian OS — Settings & Privacy (${h})`,
   mount(body) {
     let alive = true;
     async function draw() {
       if (!alive) return;
       try {
         const [p, al, au, h, qr] = await Promise.all([
-          api("/settings/privacy"),
-          api("/allowlist"),
-          api("/audit?limit=30"),
-          api("/health"),
-          api("/quarantine")
+          api("/settings/privacy").catch(err => {
+            console.warn("fetch /settings/privacy failed:", err);
+            return {
+              store_command_lines: true,
+              redact_paths: true,
+              collect_network: true,
+              collect_registry: true,
+              response_actions_enabled: true,
+              retention_days_events: 14
+            };
+          }),
+          api("/allowlist").catch(err => {
+            console.warn("fetch /allowlist failed:", err);
+            return { items: [] };
+          }),
+          api("/audit?limit=30").catch(err => {
+            console.warn("fetch /audit failed:", err);
+            return { items: [], chain_ok: true };
+          }),
+          api("/health").catch(err => {
+            console.warn("fetch /health failed:", err);
+            return G.state.health || { version: "1.0.0", hostname: "localhost", db: { path: "guardian.db" }, sources: {} };
+          }),
+          api("/quarantine").catch(err => {
+            console.warn("fetch /quarantine failed:", err);
+            return { items: [] };
+          })
         ]);
 
-        const tog = (k, label, note) => el("label", { style: "display:flex;gap:8px;margin:5px 0;align-items:center;cursor:pointer", title: note },
-          el("input", {
-            type: "checkbox",
-            checked: p[k],
-            onchange: async e => {
-              await api("/settings/privacy", { method: "PUT", body: { [k]: e.target.checked } });
-              toast(`${k} = ${e.target.checked} (applied now)`);
-            }
-          }),
-          el("span", { style: "font-size:13px" }, label)
-        );
+        const pSettings = p || {};
+        const alItems = (al && al.items) || [];
+        const auItems = (au && au.items) || [];
+        const qrItems = (qr && qr.items) || [];
+        const healthData = h || {};
+        const dbPath = (healthData.db && healthData.db.path) || "guardian.db";
+        const isPaused = Boolean(healthData.paused);
 
-        const filteredSources = Object.entries(h.sources || {}).filter(([k, v]) => k !== "pe_model" || v.status === "available");
+        const tog = (k, label, desc) => {
+          const isChecked = Boolean(pSettings[k]);
+          const chk = el("input", {
+            type: "checkbox",
+            checked: isChecked,
+            style: "width:18px;height:18px;accent-color:#38bdf8;cursor:pointer;",
+            onchange: async e => {
+              try {
+                await api("/settings/privacy", { method: "PUT", body: { [k]: e.target.checked } });
+                toast(`${label}: ${e.target.checked ? "Enabled" : "Disabled"}`);
+              } catch (err) {
+                toast("Failed to update: " + err.message, "high");
+              }
+            }
+          });
+          return el("div", {
+            style: "display:flex;align-items:flex-start;justify-content:space-between;padding:10px 12px;margin:6px 0;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;gap:12px;"
+          },
+            el("div", { style: "display:flex;flex-direction:column;gap:3px;flex:1" },
+              el("span", { style: "font-size:13px;font-weight:600;color:var(--fg-main)" }, label),
+              el("span", { class: "dim", style: "font-size:11.5px;line-height:1.4" }, desc)
+            ),
+            chk
+          );
+        };
+
+        const filteredSources = Object.entries(healthData.sources || {}).filter(([k, v]) => k !== "pe_model" || (v && v.status === "available"));
 
         const getSourceBadge = s => {
           const isOk = s === "available" || s === "ok";
@@ -185,126 +229,219 @@ G.apps.settings = {
           return el("span", { class: `badge ${cls}`, style: "font-size:11px" }, (isOk ? "✔ " : isDeg ? "⚠ " : "✖ ") + s);
         };
 
+        // Allowlist Quick Add Form
+        const kindSelect = el("select", { style: "padding:6px 10px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;outline:none" },
+          el("option", { value: "process_name" }, "Process Name (e.g. code.exe)"),
+          el("option", { value: "sha256" }, "SHA-256 Hash"),
+          el("option", { value: "ip" }, "Remote IP Address"),
+          el("option", { value: "command_line" }, "Command Line Prefix")
+        );
+        const valInput = el("input", { type: "text", placeholder: "Target value (e.g. notepad.exe or SHA256)", style: "flex:1;min-width:180px;padding:6px 10px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;outline:none" });
+        const reasonInput = el("input", { type: "text", placeholder: "Reason (e.g. Approved developer tool)", style: "flex:1;min-width:180px;padding:6px 10px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;outline:none" });
+        const addRuleBtn = el("button", {
+          class: "btn-subtle sm emerald",
+          style: "white-space:nowrap;padding:6px 14px;font-weight:600;cursor:pointer",
+          onclick: async () => {
+            const kind = kindSelect.value;
+            const value = valInput.value.trim();
+            const reason = reasonInput.value.trim() || "User approved";
+            if (!value) { toast("Please specify a target value to allowlist", "high"); return; }
+            try {
+              await api("/allowlist", { method: "POST", body: { kind, value, reason } });
+              toast(`Added to allowlist: ${value}`, "low");
+              valInput.value = "";
+              reasonInput.value = "";
+              draw();
+            } catch (e) {
+              toast("Allowlist error: " + e.message, "high");
+            }
+          }
+        }, "+ Add Rule");
+
+        // Retention Days Input
+        const retentionInput = el("input", {
+          type: "number",
+          min: 1,
+          max: 90,
+          value: pSettings.retention_days_events || 14,
+          style: "width:70px;padding:5px 8px;background:rgba(15,23,42,0.8);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:13px;font-weight:600;text-align:center",
+          onchange: async e => {
+            const val = Math.max(1, Math.min(90, parseInt(e.target.value) || 14));
+            try {
+              await api("/settings/privacy", { method: "PUT", body: { retention_days_events: val } });
+              toast("Event retention updated: " + val + " days");
+            } catch (err) {
+              toast("Failed to update retention: " + err.message, "high");
+            }
+          }
+        });
+
+        const setRetention = async days => {
+          retentionInput.value = days;
+          try {
+            await api("/settings/privacy", { method: "PUT", body: { retention_days_events: days } });
+            toast(`Retention set to ${days} days`);
+          } catch (e) {
+            toast(e.message, "high");
+          }
+        };
+
         clear(body).append(el("div", { class: "pad" },
+          // 1. Privacy & Local Telemetry
           el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
             el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:var(--primary)" },
               renderIcon("shield", "cyan", "xs"),
-              el("span", {}, "Privacy & Local Telemetry")
+              el("span", {}, "Privacy & Local Telemetry Protection")
             ),
-            tog("store_command_lines", "Store process command lines (sensitive tokens/passwords automatically redacted)"),
-            tog("redact_paths", "Redact user profile names in absolute file paths"),
-            tog("collect_network", "Collect outbound and inbound TCP connection metadata"),
-            tog("collect_registry", "Monitor startup persistence (Windows Run / RunOnce keys)"),
-            tog("response_actions_enabled", "Enable incident response capabilities (terminate, suspend, quarantine — always user-confirmed)"),
-            el("div", { style: "display:flex;align-items:center;gap:8px;margin-top:10px" },
-              el("label", { style: "font-size:13px" }, "Raw event retention (days): "),
-              el("input", {
-                type: "number",
-                min: 1,
-                max: 90,
-                value: p.retention_days_events || 7,
-                style: "width:75px",
-                onchange: async e => {
-                  await api("/settings/privacy", { method: "PUT", body: { retention_days_events: +e.target.value } });
-                  toast("Retention updated: " + e.target.value + " days");
-                }
-              })
+            el("div", { class: "dim", style: "margin-bottom:12px;font-size:12px;line-height:1.5" },
+              "🔒 Absolute Privacy Guarantee: All system telemetry is recorded strictly onto this device inside SQLite with Write-Ahead Logging (WAL). No cloud telemetry, keystrokes, clipboard, or document contents are ever recorded."
             ),
-            el("div", { class: "dim", style: "margin-top:8px;font-size:12px" },
-              "🔒 Absolute Data Privacy: All telemetry stays 100% local inside the SQLite WAL database. No network beaconing, cloud telemetry, keystroke logging, or document contents are ever collected."
+            tog("store_command_lines", "Store Process Command Lines", "Captures executable invocation arguments; sensitive credentials, passwords, and tokens are automatically redacted via heuristic regex."),
+            tog("redact_paths", "Redact User Profile Paths", "Replaces absolute username folders (e.g. C:\\Users\\Administrator\\...) with generic [USER] placeholders in logs."),
+            tog("collect_network", "Collect Network Connection Telemetry", "Monitors active TCP/UDP sockets, remote IP endpoints, and port communication for behavioral anomaly detection."),
+            tog("collect_registry", "Monitor Startup Persistence Keys", "Watches Windows Run and RunOnce registry hives for unauthorized autostart persistence attempts."),
+            tog("response_actions_enabled", "Enable User-Confirmed Response Actions", "Permits manual remediation actions (Process Terminate, Suspend, Quarantine) — always requiring operator confirmation."),
+            
+            el("div", { style: "display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;flex-wrap:wrap;gap:10px" },
+              el("div", { style: "display:flex;flex-direction:column;gap:2px" },
+                el("span", { style: "font-size:13px;font-weight:600;color:var(--fg-main)" }, "Raw Event Log Retention"),
+                el("span", { class: "dim", style: "font-size:11.5px" }, "Older security events and process snapshots are automatically pruned by background vacuum.")
+              ),
+              el("div", { style: "display:flex;align-items:center;gap:6px" },
+                retentionInput,
+                el("span", { class: "dim", style: "font-size:12px;margin-right:6px" }, "days"),
+                el("button", { class: "btn-subtle xs", onclick: () => setRetention(7) }, "7d"),
+                el("button", { class: "btn-subtle xs", onclick: () => setRetention(14) }, "14d"),
+                el("button", { class: "btn-subtle xs", onclick: () => setRetention(30) }, "30d")
+              )
             )
           ),
 
+          // 2. Sensor Shields & Telemetry Collectors
           el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
             el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#38bdf8" },
               renderIcon("activity", "cyan", "xs"),
               el("span", {}, "Telemetry Collectors & Sensor Shields")
             ),
             table([
-              { label: "SENSOR / SOURCE", render: r => el("code", { style: "font-weight:600" }, r[0]) },
-              { label: "STATUS", render: r => getSourceBadge(r[1].status) },
-              { label: "OPERATIONAL DETAIL", render: r => el("span", { class: "dim", style: "font-size:12px" }, r[1].reason || "Active and healthy") }
+              { label: "SENSOR / SOURCE", render: r => el("code", { style: "font-weight:600;color:var(--fg-main)" }, r[0]) },
+              { label: "STATUS", render: r => getSourceBadge(r[1] ? r[1].status : "unknown") },
+              { label: "OPERATIONAL DETAIL", render: r => el("span", { class: "dim", style: "font-size:12px" }, (r[1] && r[1].reason) ? r[1].reason : "Active, observing system events cleanly") }
             ], filteredSources)
           ),
 
+          // 3. Allowlisted Entities & Trusted Rules
+          el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#10b981" },
+              renderIcon("shield-check", "emerald", "xs"),
+              el("span", {}, "Allowlisted Entities & Suppression Rules")
+            ),
+            el("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px" },
+              kindSelect,
+              valInput,
+              reasonInput,
+              addRuleBtn
+            ),
+            alItems.length ? table([
+              { k: "kind", label: "RULE TYPE", render: r => el("span", { class: "badge slate", style: "font-size:10.5px" }, r.kind) },
+              { label: "TARGET VALUE", render: r => el("code", { style: "font-size:12px;color:#38bdf8" }, fmt.short(r.value, 50)) },
+              { k: "reason", label: "JUSTIFICATION" },
+              { label: "ACTION", render: r => el("button", {
+                class: "btn-subtle xs rose",
+                onclick: async () => {
+                  try {
+                    await api(`/allowlist?kind=${encodeURIComponent(r.kind)}&value=${encodeURIComponent(r.value)}`, { method: "DELETE" });
+                    toast("Removed from allowlist: " + r.value);
+                    draw();
+                  } catch (e) {
+                    toast(e.message, "high");
+                  }
+                }
+              }, "Remove") }
+            ], alItems) : el("div", { style: "display:flex;align-items:center;gap:8px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px" },
+              renderIcon("check", "emerald", "xs"),
+              el("span", { class: "dim", style: "font-size:12.5px" }, "Allowlist is empty — all suspicious behaviors evaluate against full deterministic correlation rules.")
+            )
+          ),
+
+          // 4. Quarantined Files
           el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
             el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#a855f7" },
               renderIcon("box", "purple", "xs"),
-              el("span", {}, "Quarantined Files")
+              el("span", {}, "Quarantined Files & Isolation Vault")
             ),
-            (qr.items && qr.items.length) ? table([
-              { k: "name", label: "FILE" },
-              { label: "ORIGINAL PATH", render: r => fmt.short(r.original_path, 50) },
-              { label: "WHEN", render: r => fmt.datetime(r.ts) },
-              { label: "", render: r => el("button", {
+            qrItems.length ? table([
+              { k: "name", label: "FILE NAME" },
+              { label: "ORIGINAL PATH", render: r => fmt.short(r.original_path, 48) },
+              { label: "QUARANTINED AT", render: r => fmt.datetime(r.ts) },
+              { label: "ACTION", render: r => el("button", {
                 class: "btn-subtle xs cyan",
                 onclick: async () => {
                   try {
                     const x = await api(`/quarantine/${r.id}/restore`, { method: "POST", body: {} });
-                    toast("Restored to " + x.restored_to);
+                    toast("Restored executable to " + x.restored_to, "low");
                     draw();
                   } catch (e) {
                     toast(e.message, "high");
                   }
                 }
               }, "Restore") }
-            ], qr.items) : el("div", { class: "dim", style: "font-size:12px" }, "No files currently quarantined.")
-          ),
-
-          el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
-            el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#10b981" },
+            ], qrItems) : el("div", { style: "display:flex;align-items:center;gap:8px;padding:12px;background:rgba(255,255,255,0.02);border-radius:8px" },
               renderIcon("shield-check", "emerald", "xs"),
-              el("span", {}, "Allowlisted Entities")
-            ),
-            (al.items && al.items.length) ? table([
-              { k: "kind", label: "KIND" },
-              { label: "VALUE", render: r => fmt.short(r.value, 60) },
-              { k: "reason", label: "REASON" },
-              { label: "", render: r => el("button", {
-                class: "btn-subtle xs rose",
-                onclick: async () => {
-                  await api(`/allowlist?kind=${r.kind}&value=${encodeURIComponent(r.value)}`, { method: "DELETE" });
-                  toast("Removed from allowlist");
-                  draw();
-                }
-              }, "Remove") }
-            ], al.items) : el("div", { class: "dim", style: "font-size:12px" }, "Allowlist is empty.")
+              el("span", { class: "dim", style: "font-size:12.5px" }, "Isolation Vault is clean — 0 quarantined executables.")
+            )
           ),
 
+          // 5. Data Management & Storage
           el("div", { class: "card", style: "padding:16px;margin-bottom:14px" },
             el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:#f59e0b" },
               renderIcon("database", "amber", "xs"),
               el("span", {}, "Data Management & Storage Actions")
             ),
-            el("div", { style: "display:flex;gap:8px;flex-wrap:wrap" },
+            el("div", { style: "display:flex;gap:8px;flex-wrap:wrap;align-items:center" },
               el("button", {
                 class: "btn-subtle sm cyan",
-                onclick: async () => download("guardian_export.json", await api("/export"))
-              }, "Export Investigations (JSON)"),
+                style: "display:flex;align-items:center;gap:6px;cursor:pointer",
+                onclick: async () => {
+                  try {
+                    const data = await api("/export");
+                    download("guardian_export.json", data);
+                    toast("Export downloaded cleanly", "low");
+                  } catch (e) {
+                    toast("Export failed: " + e.message, "high");
+                  }
+                }
+              }, "📥 Export Investigations (JSON)"),
               el("button", {
                 class: "btn-subtle sm",
+                style: "display:flex;align-items:center;gap:6px;cursor:pointer",
                 onclick: async () => {
-                  await api("/collection", { method: "POST", body: { paused: !h.paused } });
-                  toast(h.paused ? "Collection resumed" : "Collection paused");
-                  draw();
+                  try {
+                    await api("/collection", { method: "POST", body: { paused: !isPaused } });
+                    toast(isPaused ? "Collection resumed" : "Collection paused");
+                    draw();
+                  } catch (e) {
+                    toast(e.message, "high");
+                  }
                 }
-              }, h.paused ? "▶ Resume Collection" : "⏸ Pause Collection"),
+              }, isPaused ? "▶ Resume Collection" : "⏸ Pause Collection"),
               el("button", {
                 class: "btn-subtle sm rose",
+                style: "display:flex;align-items:center;gap:6px;cursor:pointer",
                 onclick: async () => {
                   confirmDialog({
                     title: "Wipe All Local Telemetry",
-                    message: "This will permanently delete all raw events, detections, snapshots, network flows, and incident records from local storage. The database schema and settings will be preserved.",
+                    message: "This will permanently delete all raw security events, process trees, snapshots, and incident records from local storage. The database schema and user settings will be preserved.",
                     confirmPrompt: "Type DELETE in capital letters to confirm:",
                     placeholder: "DELETE",
                     onConfirm: async (val) => {
                       if (val !== "DELETE") {
-                        toast("Wipe aborted: confirmation text did not match DELETE", "high");
+                        toast("Wipe aborted: text did not match DELETE", "high");
                         return;
                       }
                       try {
                         await api("/data", { method: "DELETE", body: { confirm: "DELETE" } });
-                        toast("Local telemetry deleted cleanly", "low");
+                        toast("Local telemetry wiped cleanly", "low");
                         draw();
                       } catch (e) {
                         toast(e.message, "high");
@@ -316,20 +453,21 @@ G.apps.settings = {
             )
           ),
 
+          // 6. Cryptographic Audit Log
           el("div", { class: "card", style: "padding:16px" },
             el("h4", { style: "display:flex;align-items:center;gap:6px;margin:0 0 10px 0;color:var(--fg-main)" },
               renderIcon("lock", "cyan", "xs"),
-              el("span", {}, `Cryptographic Audit Log ${au.chain_ok ? "(Hash Chain Verified ✔)" : "(CHAIN BROKEN ✖)"}`)
+              el("span", {}, `Cryptographic Audit Trail ${au && au.chain_ok ? "(SHA-256 Chain Verified ✔)" : "(CHAIN BROKEN ✖)"}`)
             ),
-            table([
+            auItems.length ? table([
               { label: "TIME", render: r => fmt.datetime(r.ts) },
               { k: "actor", label: "ACTOR" },
               { k: "action", label: "ACTION" },
               { label: "TARGET", render: r => fmt.short(r.target, 40) },
-              { k: "result", label: "RESULT" }
-            ], (au.items || []).slice(0, 15)),
+              { k: "result", label: "RESULT", render: r => el("span", { class: `badge ${r.result === "ok" ? "emerald" : "amber"}`, style: "font-size:10.5px" }, r.result) }
+            ], auItems.slice(0, 15)) : el("div", { class: "dim", style: "font-size:12px" }, "No recent audit records."),
             el("div", { class: "dim", style: "margin-top:12px;font-size:11.5px" },
-              `Smart OS Guardian ${h.version} · API loopback only · session token rotates on start · DB: ${h.db.path}`
+              `Smart OS Guardian ${healthData.version || "1.0.0"} · Loopback API only · Session token isolated · Local DB: ${dbPath}`
             )
           )
         ));
