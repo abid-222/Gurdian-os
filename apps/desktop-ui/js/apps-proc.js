@@ -1,8 +1,4 @@
 "use strict";
-function download(name, obj) {
-  const a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" })), download: name });
-  document.body.append(a); a.click(); a.remove();
-}
 
 G.apps.processes = {
   name: "Process Center", short: "procs", icon: "proc", w: 1080, h: 660, flush: true, title: h => `Guardian OS — Process Center (${h})`,
@@ -514,13 +510,102 @@ G.apps.processes = {
     }
 
     load();
-    const interval = setInterval(load, 3000);
+    const interval = setInterval(load, 5000);
     return {
       destroy() {
         st.alive = false;
         clearInterval(interval);
       },
       onFocus() { }
+    };
+  }
+};
+
+G.apps.network = {
+  name: "Network Traffic",
+  short: "net",
+  icon: "globe",
+  w: 960,
+  h: 600,
+  flush: true,
+  title: h => `Guardian OS — Network Traffic & Sockets (${h})`,
+  mount(body) {
+    const st = { q: "", tab: "live", alive: true, rows: [] };
+    const tbl = el("div", { style: "flex:1;overflow:auto" });
+    const search = el("input", { placeholder: "Search IP / Port / Process / Protocol...", style: "width:260px", oninput: e => { st.q = e.target.value; load(); } });
+    const tabLive = el("button", {
+      class: "btn-subtle xs cyan",
+      style: "font-weight:600",
+      onclick: () => switchTab("live")
+    }, "Live Active Sockets");
+    const tabHist = el("button", {
+      class: "btn-subtle xs",
+      style: "font-weight:600",
+      onclick: () => switchTab("history")
+    }, "Historical Flows (DB)");
+
+    function switchTab(t) {
+      st.tab = t;
+      tabLive.className = "btn-subtle xs" + (st.tab === "live" ? " cyan" : "");
+      tabHist.className = "btn-subtle xs" + (st.tab === "history" ? " cyan" : "");
+      load();
+    }
+
+    const exportBtn = el("button", {
+      class: "btn-subtle sm cyan",
+      onclick: () => download("network_traffic.json", st.rows)
+    }, "📥 Export JSON");
+
+    const menubar = el("div", { class: "menubar", style: "gap:10px" },
+      tabLive, tabHist,
+      el("span", { style: "width:1px;height:18px;background:var(--border-light)" }),
+      search,
+      el("span", { class: "sp" }),
+      exportBtn
+    );
+
+    body.append(menubar, tbl);
+
+    async function load() {
+      if (!st.alive) return;
+      try {
+        if (st.tab === "live") {
+          const r = await api("/network/connections?q=" + encodeURIComponent(st.q)).catch(() => ({ items: [] }));
+          st.rows = r.items || [];
+          clear(tbl).append(table([
+            { label: "NETID", render: r => el("span", { class: `badge ${r.proto === 'tcp' ? 'cyan' : 'purple'}`, style: "font-size:10.5px" }, (r.proto || 'tcp').toUpperCase()) },
+            { label: "STATE", render: r => el("span", { class: r.status === 'ESTABLISHED' ? 'st-ok' : 'dim', style: "font-size:11.5px;font-weight:600" }, r.status || 'LISTEN') },
+            { label: "LOCAL ADDRESS:PORT", render: r => el("code", { style: "font-size:12px;color:var(--fg-main)" }, r.laddr || "—") },
+            { label: "PEER ADDRESS:PORT", render: r => el("code", { style: "font-size:12px;color:#38bdf8" }, r.raddr || "—") },
+            { label: "PID", cls: "r", render: r => r.pid },
+            { label: "PROCESS", render: r => el("span", { style: "font-weight:600" }, r.process || "—") }
+          ], st.rows));
+        } else {
+          const r = await api("/network/flows?limit=500").catch(() => ({ items: [] }));
+          const items = r.items || [];
+          st.rows = items.filter(f => !st.q || JSON.stringify(f).toLowerCase().includes(st.q.toLowerCase()));
+          clear(tbl).append(table([
+            { label: "TIME", render: f => fmt.datetime(f.start_ts) },
+            { label: "PROTO", render: f => el("span", { class: "badge cyan", style: "font-size:10.5px" }, (f.protocol || 'TCP').toUpperCase()) },
+            { label: "LOCAL ENDPOINT", render: f => el("code", {}, `${f.laddr}:${f.lport}`) },
+            { label: "REMOTE ENDPOINT", render: f => el("code", { style: "color:#38bdf8" }, `${f.raddr}:${f.rport}`) },
+            { label: "STATUS", render: f => el("span", { class: f.status === 'ESTABLISHED' ? 'st-ok' : 'dim' }, f.status || 'CLOSED') },
+            { label: "PID", cls: "r", render: f => f.pid },
+            { label: "DURATION", render: f => f.end_ts ? fmt.dur(Math.max(1, f.end_ts - f.start_ts)) : el("span", { class: "st-ok" }, "active") }
+          ], st.rows));
+        }
+      } catch (e) {
+        console.error("Network load error:", e);
+      }
+    }
+
+    load();
+    const t = setInterval(load, 4000);
+    return {
+      destroy() {
+        st.alive = false;
+        clearInterval(t);
+      }
     };
   }
 };

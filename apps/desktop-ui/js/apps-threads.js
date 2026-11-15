@@ -15,11 +15,13 @@ G.apps.threads = {
       if (!alive) return;
       try {
         const [h, tRes] = await Promise.all([
-          api("/health"),
+          api("/health").catch(() => G.state.health || {}),
           api("/system/threads").catch(() => ({ threads: [] }))
         ]);
-        const threads = tRes.threads && tRes.threads.length ? tRes.threads : (h.threads || []);
-        const q = h.queue || {};
+        const threads = (tRes && tRes.threads && tRes.threads.length) ? tRes.threads : (h && Array.isArray(h.threads) ? h.threads : []);
+        const q = (h && h.queue) || {};
+        const dbInfo = (h && h.db) || {};
+        const chainOk = Boolean(dbInfo.audit_chain_ok);
 
         // Producers vs Consumers counts
         const producers = threads.filter(t => (t.role || "").includes("producer"));
@@ -130,7 +132,7 @@ G.apps.threads = {
             ),
             el("div", { style: "display:flex;justify-content:space-between" },
               el("span", { class: "dim" }, "Cryptographic Chain:"),
-              el("strong", { class: h.db.audit_chain_ok ? "st-ok" : "st-bad" }, h.db.audit_chain_ok ? "Verified ✔" : "Broken ✖")
+              el("strong", { class: chainOk ? "st-ok" : "st-bad" }, chainOk ? "Verified ✔" : "Broken ✖")
             )
           )
         );
