@@ -313,7 +313,7 @@ def _cmd_pstree(agent) -> dict:
 def _cmd_threads(agent) -> dict:
     q = agent.queue.stats()
     lines = [
-        "Bounded EventQueue:",
+        "Bounded EventQueue (Producer-Consumer IPC Buffer):",
         f"  depth          : {q['depth']} / {config.QUEUE_MAX_EVENTS} events ({q['fill_pct']}%)",
         f"  memory (bytes) : {_fmt_bytes(q['bytes'])} / {_fmt_bytes(config.QUEUE_MAX_BYTES)}",
         f"  queue state    : {q['state']}",
@@ -323,12 +323,15 @@ def _cmd_threads(agent) -> dict:
     if q.get("dropped_by_source"):
         lines.append(f"  drop by source : {dict(q['dropped_by_source'])}")
     lines.append("")
-    lines.append("Active Worker & Collector Threads:")
-    lines.append(f"{'TID':>8}  {'NAME':<24} {'DAEMON':<8} {'STATUS'}")
+    lines.append("OS Threads & Synchronization Primitives:")
+    lines.append(f"{'NAME':<16} {'ROLE':<30} {'SYNC PRIMITIVE':<32} {'STATUS'}")
+    t_status = {t["name"]: t for t in agent.thread_status()}
     for t in sorted(threading.enumerate(), key=lambda x: x.name):
-        tid = t.ident or 0
+        info = t_status.get(t.name, {})
+        role = info.get("role", "worker thread")
+        sync = info.get("sync_primitive", "thread")
         status = "alive" if t.is_alive() else "stopped"
-        lines.append(f"{tid:>8}  {t.name:<24} {str(t.daemon):<8} {status}")
+        lines.append(f"{t.name:<16} {role:<30} {sync:<32} {status}")
     return {"ok": True, "output": "\n".join(lines)}
 
 

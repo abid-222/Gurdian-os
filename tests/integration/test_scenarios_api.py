@@ -88,3 +88,22 @@ def test_ack_and_dismiss_audited(client):
     assert c.post(f"/api/v1/alerts/{iid}/dismiss", headers=H, json={"reason": "expected"}).json()["ok"]
     d = c.get(f"/api/v1/alerts/{iid}", headers=H).json()
     assert [a["action"] for a in d["audit"]] == ["acknowledge", "dismiss"] and agent.db.verify_audit_chain()
+
+
+def test_system_threads_endpoint_and_terminal(client):
+    c, agent = client
+    # Test GET /api/v1/system/threads
+    r = c.get("/api/v1/system/threads", headers=H)
+    assert r.status_code == 200
+    threads = r.json().get("threads", [])
+    assert isinstance(threads, list) and len(threads) > 0
+    roles = [t.get("role") for t in threads]
+    prims = [t.get("sync_primitive") for t in threads]
+    assert any("worker" in (r or "") or "producer" in (r or "") or "consumer" in (r or "") for r in roles)
+    assert any("Condition Variable" in (p or "") or "Queue" in (p or "") for p in prims)
+
+    # Test terminal threads command
+    term_res = c.post("/api/v1/terminal", headers=H, json={"line": "threads"}).json()
+    assert term_res["ok"]
+    assert "Bounded EventQueue" in term_res["output"]
+    assert "OS Threads" in term_res["output"]

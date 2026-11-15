@@ -29,8 +29,44 @@ G.apps.models = {
             ["E1 model score", r.model ? `score ${r.model.score} (threshold ${r.model.threshold}, inference ${r.model.inference_time_ms} ms)` : "Not installed (optional) — running rules E2–E6"],
             ["execution safety", "never executed (static OS inspection only)"]
           ];
+          if (r.model && r.model.top_features && r.model.top_features.length) {
+            rows.splice(10, 0, ["SHAP Attribution", r.model.top_features.map(x => `${x.feature} (${x.impact > 0 ? "+" : ""}${x.impact})`).join(" • ")]);
+          }
+
+          const shapCard = (r.model && r.model.top_features && r.model.top_features.length) ? el("div", {
+            class: "card",
+            style: "margin-top:10px;border-left:3px solid #38bdf8;background:rgba(56,189,248,0.06)"
+          },
+            el("h4", { style: "display:flex;align-items:center;gap:6px;color:#38bdf8;margin:0 0 8px 0" },
+              renderIcon("shield-alert", "cyan", "xs"),
+              el("span", {}, "AI Feature Attribution & Explainability (LightGBM SHAP Values):")
+            ),
+            el("div", { class: "dim", style: "font-size:12px;margin-bottom:8px" },
+              "Detailed mathematical SHAP attribution explaining why the ML model scored this PE binary:"
+            ),
+            el("div", { style: "display:flex;flex-direction:column;gap:6px" },
+              ...r.model.top_features.map((feat, idx) => el("div", {
+                style: "display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px"
+              },
+                el("div", { style: "display:flex;align-items:center;gap:8px" },
+                  el("span", { class: "device-chip", style: "font-size:10px;padding:1px 6px" }, `#${idx + 1}`),
+                  el("span", { style: "font-weight:600;font-size:13px" }, feat.feature)
+                ),
+                el("div", { style: "display:flex;align-items:center;gap:8px" },
+                  el("span", { class: feat.impact > 0 ? "st-bad" : "st-ok", style: "font-weight:700;font-family:var(--font-mono)" },
+                    (feat.impact > 0 ? "+" : "") + feat.impact
+                  ),
+                  el("span", { class: "badge " + (feat.impact > 0 ? "rose" : "emerald"), style: "font-size:10px" },
+                    feat.impact > 0 ? "Malicious Factor" : "Benign Factor"
+                  )
+                )
+              ))
+            )
+          ) : null;
+
           clear(out).append(
             kv(rows),
+            shapCard,
             f.sections && f.sections.length ? el("div", { style: "margin-top:8px" },
               el("div", { style: "font-weight:600;margin-bottom:3px;color:var(--accent)" }, "PE Header Sections:"),
               table([

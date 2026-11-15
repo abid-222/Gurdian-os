@@ -153,6 +153,10 @@ def create_app(agent, token: str, port: int | None = None, token_issued: float |
                     continue
         return {"items": out[:400], "available": agent.is_windows}
 
+    @app.get(P + "/system/threads")
+    def threads():
+        return {"threads": agent.thread_status()}
+
     @app.post(P + "/collection")
     def collection(req: PauseReq):
         agent.paused = req.paused

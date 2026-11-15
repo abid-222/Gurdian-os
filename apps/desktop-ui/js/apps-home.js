@@ -208,6 +208,7 @@ G.apps.home = {
 
         // Quick Actions Grid (All Framed SVG Icons)
         const quickActions = [
+          { app: "threads", icon: "cpu", color: "cyan", title: "Concurrency & IPC", desc: "Producer-consumer & threads" },
           { app: "terminal", icon: "terminal", color: "cyan", title: "Guardian Shell", desc: "Interactive command shell" },
           { app: "processes", icon: "hierarchy", color: "emerald", title: "Process Tree", desc: "Parent-child hierarchy" },
           { app: "network", icon: "globe", color: "indigo", title: "Network Flows", desc: "Live sockets & connections" },
@@ -270,6 +271,15 @@ G.apps.home = {
             el("span", { class: "device-chip", style: "padding:2px 8px;font-size:11px" }, `${(h.threads || []).length} Background Workers`)
           ),
           el("div", { style: "display:flex;align-items:center;gap:12px" },
+            el("button", {
+              class: "btn-subtle xs cyan",
+              style: "font-size:11px;padding:3px 8px",
+              title: "Open dedicated full-screen Concurrency & IPC Workstation",
+              onclick: (e) => {
+                e.stopPropagation();
+                WM.open("threads");
+              }
+            }, "Open Full Workstation ↗"),
             el("span", { class: "accordion-summary" },
               `Queue Fill: ${q.fill_pct || 0}% • ${q.generated || 0} events • ${q.dropped || 0} dropped`
             ),

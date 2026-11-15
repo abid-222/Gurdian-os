@@ -187,9 +187,63 @@ class PEModel:
         raw = float(self.booster.predict([vec])[0])
         score = self._calibrate(raw)
         thr = self.info["threshold_high"]
+
+        # Explainability: Top-3 feature contributions via LightGBM SHAP values
+        top_features = []
+        try:
+            contribs = self.booster.predict([vec], pred_contrib=True)[0]
+            # contribs length is len(features) + 1 (last element is expected value / bias)
+            feat_contribs = contribs[:-1]
+            raw_names = getattr(self.booster, "feature_name", lambda: None)() or (self.columns if self.columns else None)
+
+            def _friendly_feature_name(idx: int, raw_name: str | None) -> str:
+                if raw_name and not raw_name.lower().startswith(("column_", "feature_")):
+                    return raw_name
+                # Map EMBER2024 feature vector offsets to explainable security categories
+                if 0 <= idx < 7:
+                    return f"General File Metadata (idx {idx})"
+                elif 7 <= idx < 263:
+                    return f"Byte Distribution Anomaly (idx {idx})"
+                elif 263 <= idx < 519:
+                    return f"High Section & Byte Entropy / Packed Code (idx {idx})"
+                elif 519 <= idx < 696:
+                    return f"Suspicious Embedded Strings / IOCs (idx {idx})"
+                elif 696 <= idx < 920:
+                    return f"Abnormal PE Section Characteristics / W+X (idx {idx})"
+                elif 920 <= idx < 2202:
+                    return f"Suspicious API Import Table (idx {idx})"
+                elif 2202 <= idx < 2331:
+                    return f"Suspicious Export Table Functions (idx {idx})"
+                elif 2331 <= idx < 2405:
+                    return f"PE / COFF Header Anomalies (idx {idx})"
+                elif 2405 <= idx < 2439:
+                    return f"PE Data Directory Layout (idx {idx})"
+                elif 2439 <= idx < 2472:
+                    return f"Rich Header Compiler Stamp (idx {idx})"
+                elif 2472 <= idx < 2480:
+                    return f"Authenticode Signature Anomaly (idx {idx})"
+                elif 2480 <= idx < 2568:
+                    return f"PE Structural / Header Warnings (idx {idx})"
+                return raw_name or f"Feature #{idx}"
+
+            ranked_indices = sorted(range(len(feat_contribs)), key=lambda i: abs(feat_contribs[i]), reverse=True)[:3]
+            for idx in ranked_indices:
+                val = float(feat_contribs[idx])
+                raw_n = raw_names[idx] if raw_names and idx < len(raw_names) else None
+                label = _friendly_feature_name(idx, raw_n)
+                top_features.append({
+                    "feature": label,
+                    "index": idx,
+                    "impact": round(val, 4),
+                    "direction": "malicious" if val > 0 else "benign"
+                })
+        except Exception:
+            pass
+
         return {"model_id": self.info["model_id"], "model_version": self.info["version"],
                 "feature_schema_version": self.info["feature_schema_version"], "score": round(score, 4), "raw_score": round(raw, 4),
                 "threshold": thr, "prediction": "malicious" if score >= thr else "benign",
+                "top_features": top_features,
                 "calibrated": bool(self.calibrator), "validated": self.validated,
                 "inference_time_ms": round((time.perf_counter() - t0) * 1000, 1)}
 

@@ -1,8 +1,9 @@
 "use strict";
 (function () {
-  const DOCK = ["home", "terminal", "processes", "network", "security", "system", "timeline", "models", "settings"];
+  const DOCK = ["home", "threads", "terminal", "processes", "network", "security", "system", "timeline", "models", "settings"];
   const DOCK_LABELS = {
     home: "Overview",
+    threads: "Concurrency & IPC",
     terminal: "Terminal Shell",
     processes: "Process Tree",
     network: "Network Traffic",
@@ -72,6 +73,8 @@
 
   function start(h) {
     palClose();
+    const thrPill = $("#tThreadsPill");
+    if (thrPill) thrPill.onclick = () => WM.open("threads");
     const userEl = $("#tUser");
     if (userEl) userEl.textContent = `guardian@${h.hostname.toLowerCase()}`;
 
@@ -139,6 +142,11 @@
         tSrc.className = okN === tot ? "st-ok" : "st-degraded";
       }
 
+      const tThr = $("#tThreads");
+      if (tThr && h.threads) {
+        tThr.textContent = `⚡ ${h.threads.length} Threads (IPC)`;
+      }
+
       // Friendly Status Banner Pill (Crisp SVG - No Text Emojis)
       const ban = $("#banner");
       if (ban) {
@@ -185,7 +193,7 @@
   const pal = { items: [], idx: 0 };
   function palItems(q) {
     const apps = DOCK.map(id => ({
-      label: "Open " + (DOCK_LABELS[id] || G.apps[id].name),
+      label: "Open " + (DOCK_LABELS[id] || (G.apps[id] && G.apps[id].name) || id),
       hint: "Application",
       run: () => WM.open(id)
     }));
