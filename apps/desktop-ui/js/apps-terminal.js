@@ -9,7 +9,7 @@ const LOGO = `   ____                 _ _
          O S   G U A R D I A N           `;
 
 G.apps.terminal = {
-  name: "Guardian Shell", short: "term", icon: "term", w: 820, h: 500, flush: true, title: h => `Guardian OS — Terminal Shell (${h})`,
+  name: "Guardian Shell", short: "term", icon: "term", w: 820, h: 500, flush: true, title: h => `root@${(h || "guardian").toLowerCase()}:~# [bash-shell]`,
   mount(body, rec) {
     const hostname = document.body.dataset.host || "host";
     const out = el("div", { class: "term", tabindex: "-1" });

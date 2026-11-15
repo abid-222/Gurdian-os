@@ -1,6 +1,6 @@
 "use strict";
 G.apps.security = {
-  name: "Security Center", short: "sec", icon: "sec", w: 1060, h: 640, flush: true, title: h => `Guardian OS — Security Center (${h})`,
+  name: "Security Center", short: "sec", icon: "sec", w: 1060, h: 640, flush: true, title: h => `secops@${(h || "guardian").toLowerCase()}:/var/log/alerts [security]`,
   mount(body) {
     const st = { sel: null, items: [], filter: "open", alive: true };
     const list = el("div"), det = el("div", { class: "pad" }, el("div", { class: "dim" }, "Select an incident to see its evidence chain."));
@@ -73,7 +73,7 @@ G.apps.security = {
 };
 
 G.apps.timeline = {
-  name: "Event Timeline", short: "log", icon: "log", w: 1000, h: 560, flush: true, title: h => `Guardian OS — Event Timeline (${h})`,
+  name: "Event Timeline", short: "log", icon: "log", w: 1000, h: 560, flush: true, title: h => `secops@${(h || "guardian").toLowerCase()}:/var/log/audit [timeline]`,
   mount(body) {
     const st = { follow: true, alive: true, f: { type: "", source: "", q: "", pid: "" }, rows: [] };
     const view = el("div", { class: "pad", style: "flex:1;overflow:auto;padding-top:4px" });

@@ -1,7 +1,7 @@
 "use strict";
 
 G.apps.models = {
-  name: "File Scanner", short: "scan", icon: "model", w: 880, h: 660, title: h => `Guardian OS — File Scanner (${h})`,
+  name: "File Scanner", short: "scan", icon: "model", w: 880, h: 660, title: h => `secops@${(h || "guardian").toLowerCase()}:/opt/scanner [pe-elf-analyzer]`,
   mount(body) {
     let alive = true;
     const render = async () => {
@@ -266,7 +266,7 @@ G.apps.models = {
 };
 
 G.apps.settings = {
-  name: "Settings & Privacy", short: "cfg", icon: "cfg", w: 880, h: 680, title: h => `Guardian OS — Settings & Privacy (${h})`,
+  name: "Settings & Privacy", short: "cfg", icon: "cfg", w: 880, h: 680, title: h => `root@${(h || "guardian").toLowerCase()}:/etc/guardian [sysctl-config]`,
   mount(body) {
     let alive = true;
     async function draw() {

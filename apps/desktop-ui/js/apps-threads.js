@@ -6,7 +6,7 @@ G.apps.threads = {
   icon: "cpu",
   w: 980,
   h: 680,
-  title: h => `Guardian OS — Concurrency & IPC Workstation (${h})`,
+  title: h => `kernel@${(h || "guardian").toLowerCase()}:/sys/sync [threads-ipc]`,
   mount(body) {
     let alive = true;
     let vivaNotesOpen = true;

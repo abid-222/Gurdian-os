@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/shell.css?v=0.4.7">
+<link rel="stylesheet" href="css/shell.css?v=0.4.8">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f1418'/%3E%3Cpath d='M16 4 6 8v8c0 6 4 10 10 12 6-2 10-6 10-12V8z' fill='none' stroke='%2310b981' stroke-width='2'/%3E%3Cpath d='M11 15l4 4 7-8' fill='none' stroke='%2310b981' stroke-width='2'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -19,14 +19,15 @@
   <!-- Floating Glass Top Navigation Frame -->
   <header id="panel" role="banner">
     <div class="brand">
-      <button id="menuBtn" class="brand-btn" title="Command Palette & Applications (Ctrl+K)" aria-label="Applications menu">
+      <button id="menuBtn" class="brand-btn" title="Command Palette & System Utilities (Ctrl+K)" aria-label="Applications menu">
         <span class="icon-frame xs cyan brand-icon-frame">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="m9 12 2 2 4-4"/>
+            <polyline points="4 17 10 11 4 5"/>
+            <line x1="12" y1="19" x2="20" y2="19"/>
           </svg>
         </span>
-        <span class="brand-text">Guardian OS</span>
+        <span class="brand-prompt">root@guardian:~#</span>
+        <span class="brand-text">GUARDIAN-OS</span>
         <kbd class="brand-kbd">Ctrl+K</kbd>
       </button>
     </div>
@@ -61,6 +62,10 @@
         <span class="user-prompt">λ</span>
         <span id="tUser" class="tray-user"></span>
       </div>
+      <div class="tray-pill" id="tTermHotkey" title="Open Linux Terminal (Ctrl+Alt+T)" style="cursor:pointer;font-family:var(--font-mono);font-size:11px">
+        <span style="color:var(--primary);font-weight:700">$_</span>
+        <span>Ctrl+Alt+T</span>
+      </div>
       <div id="clock" class="tray-clock" aria-label="Clock"></div>
       <button id="themeBtn" class="theme-btn icon-frame xs slate" title="Toggle Theme" aria-label="Toggle theme">
         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
@@ -78,6 +83,12 @@
   <main id="desktop">
     <div id="desktopGlow"></div>
     <div id="windows"></div>
+    <div id="desktopWatermark" class="desktop-watermark">
+      <span><span class="desktop-watermark-dot"></span> GUARDIAN-OS v0.3.0</span>
+      <span>RING-0 TELEMETRY</span>
+      <span>PRODUCER-CONSUMER IPC</span>
+      <span>ARCH: AMD64</span>
+    </div>
   </main>
 
   <!-- Hidden compatibility hooks for existing script bindings -->
@@ -108,14 +119,14 @@
   <div id="toasts" aria-live="polite"></div>
 </div>
 
-<script src="js/core.js?v=0.4.7"></script>
-<script src="js/wm.js?v=0.4.7"></script>
-<script src="js/apps-home.js?v=0.4.7"></script>
-<script src="js/apps-threads.js?v=0.4.7"></script>
-<script src="js/apps-terminal.js?v=0.4.7"></script>
-<script src="js/apps-proc.js?v=0.4.7"></script>
-<script src="js/apps-sec.js?v=0.4.7"></script>
-<script src="js/apps-misc.js?v=0.4.7"></script>
-<script src="js/main.js?v=0.4.7"></script>
+<script src="js/core.js?v=0.4.8"></script>
+<script src="js/wm.js?v=0.4.8"></script>
+<script src="js/apps-home.js?v=0.4.8"></script>
+<script src="js/apps-threads.js?v=0.4.8"></script>
+<script src="js/apps-terminal.js?v=0.4.8"></script>
+<script src="js/apps-proc.js?v=0.4.8"></script>
+<script src="js/apps-sec.js?v=0.4.8"></script>
+<script src="js/apps-misc.js?v=0.4.8"></script>
+<script src="js/main.js?v=0.4.8"></script>
 </body>
 </html>

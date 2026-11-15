@@ -75,6 +75,8 @@
     palClose();
     const thrPill = $("#tThreadsPill");
     if (thrPill) thrPill.onclick = () => WM.open("threads");
+    const termHotkeyPill = $("#tTermHotkey");
+    if (termHotkeyPill) termHotkeyPill.onclick = () => WM.toggle("terminal");
     const userEl = $("#tUser");
     if (userEl) userEl.textContent = `guardian@${h.hostname.toLowerCase()}`;
 
@@ -336,6 +338,11 @@
   function keys(e) {
     // ESC fully handled in capture phase above
     if (e.key === "Escape" || e.code === "Escape" || e.keyCode === 27) return;
+    if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      WM.toggle("terminal");
+      return;
+    }
     if ((e.ctrlKey && e.key.toLowerCase() === "k") || (e.altKey && e.code === "Space")) {
       e.preventDefault();
       $("#palette").hidden ? palOpen() : palClose();

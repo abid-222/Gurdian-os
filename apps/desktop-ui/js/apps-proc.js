@@ -1,7 +1,7 @@
 "use strict";
 
 G.apps.processes = {
-  name: "Process Center", short: "procs", icon: "proc", w: 1140, h: 690, flush: true, title: h => `Guardian OS — Endpoint Security & Process Center (${h})`,
+  name: "Process Center", short: "procs", icon: "proc", w: 1140, h: 690, flush: true, title: h => `secops@${(h || "guardian").toLowerCase()}:/proc [htop-edr]`,
   mount(body) {
     const st = {
       viewMode: "tree",  // "tree" (CrowdStrike Falcon EDR Tree), "table", "graph", "timeline"
@@ -799,7 +799,7 @@ G.apps.network = {
   w: 960,
   h: 600,
   flush: true,
-  title: h => `Guardian OS — Network Traffic & Sockets (${h})`,
+  title: h => `secops@${(h || "guardian").toLowerCase()}:/net [ss-sockets]`,
   mount(body) {
     const st = { q: "", tab: "live", alive: true, rows: [] };
     const tbl = el("div", { style: "flex:1;overflow:auto" });

@@ -14,7 +14,7 @@ const SHIELD_MAP = {
 
 G.apps.home = {
   name: "Overview", short: "home", icon: "home", w: 980, h: 680,
-  title: h => `Guardian OS — Overview (${h})`,
+  title: h => `root@${(h || "guardian").toLowerCase()}:/sys [overview]`,
   mount(body) {
     let alive = true;
     let accordionOpen = false;
@@ -42,12 +42,12 @@ G.apps.home = {
         );
 
         const heroHeadline = el("h2", { class: "hero-headline" },
-          isDegraded ? "Protection is Partially Active" : "Your System is Fully Protected"
+          isDegraded ? "KERNEL WORKSTATION: RING-3 RESTRICTED MODE" : "KERNEL CORE RING-0 INTEGRITY: OPTIMAL"
         );
         const heroSubtext = el("p", { class: "hero-subtext" },
           !h.admin
-            ? "Running as Standard User. Windows Security Event Log requires Administrator permission for full coverage."
-            : "All real-time sensors, deterministic threat engines, and audit logs are operating normally."
+            ? "Operating in unprivileged userspace. Syscall & process telemetry active; Security event auditing requires sudo/Admin privilege."
+            : "Deterministic E2–E6 correlation engine, producer-consumer ring buffer, and tamper-evident SQLite WAL ledger operating normally."
         );
 
         const pauseBtn = el("button", {
@@ -65,9 +65,11 @@ G.apps.home = {
 
         const heroChips = el("div", { class: "hero-chips" },
           el("div", { class: "device-chip" }, "Host: ", el("b", {}, h.hostname)),
-          el("div", { class: "device-chip" }, "OS: ", el("b", {}, `${h.os} (${h.architecture})`)),
+          el("div", { class: "device-chip" }, "Kernel: ", el("b", {}, "6.8.0-guardian")),
+          el("div", { class: "device-chip" }, "Arch: ", el("b", {}, h.architecture || "x86_64")),
           el("div", { class: "device-chip" }, "Uptime: ", el("b", {}, fmt.dur(h.uptime_s))),
           el("div", { class: "device-chip" }, "Engine: ", el("b", {}, "Smart Rules E2–E6")),
+          el("div", { class: "device-chip" }, "IPC: ", el("b", {}, "Lockless Ring Buffer")),
           pauseBtn
         );
 
@@ -358,7 +360,7 @@ G.apps.home = {
 
 G.apps.system = {
   name: "System Monitor", short: "sysmon", icon: "activity", w: 860, h: 600,
-  title: h => `Guardian OS — System Monitor (${h})`,
+  title: h => `root@${(h || "guardian").toLowerCase()}:/sys/hardware [telemetry]`,
   mount(body) {
     let alive = true;
     async function draw() {

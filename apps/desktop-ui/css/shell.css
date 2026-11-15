@@ -315,6 +315,19 @@ button, input, select, textarea {
   0%, 100% { filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.4)); }
   50% { filter: drop-shadow(0 0 7px rgba(56, 189, 248, 0.9)); }
 }
+.brand-prompt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  letter-spacing: -0.2px;
+  display: inline-flex;
+  align-items: center;
+}
 .brand-text {
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -701,57 +714,94 @@ button, input, select, textarea {
 }
 
 /* ==========================================================================
-   Desktop Workstation & Framed Windows
+   Desktop Workstation & Framed Windows (Linux GTK / Wayland Workstation)
    ========================================================================== */
 #desktop {
   grid-area: desktop;
   position: relative;
   overflow: hidden;
+  background-color: #070a10;
+  background-image: 
+    radial-gradient(circle, rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 28px 28px, 140px 140px, 140px 140px;
 }
 #windows { position: absolute; inset: 0; }
+
+.desktop-watermark {
+  position: absolute;
+  bottom: 14px;
+  right: 22px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.35);
+  letter-spacing: 1px;
+  pointer-events: none;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 1;
+}
+.desktop-watermark span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.desktop-watermark-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  display: inline-block;
+}
 
 .win {
   position: absolute;
   display: flex;
   flex-direction: column;
-  background: var(--bg-glass);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--border-light);
-  border-radius: 14px;
-  box-shadow: var(--shadow-lg);
+  background: rgba(13, 17, 23, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.4);
   min-width: 360px;
   min-height: 200px;
   overflow: hidden;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .win.focus {
-  border-color: rgba(56, 189, 248, 0.35);
-  box-shadow: var(--shadow-lg), 0 0 25px rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(56, 189, 248, 0.25);
 }
 .win.max {
-  inset: 10px 14px 10px 10px !important;
+  inset: 6px 10px 8px 8px !important;
   width: auto !important;
   height: auto !important;
-  border-radius: 14px;
+  border-radius: 8px;
 }
 .win.hidden { display: none; }
 
-/* Titlebar */
+/* Titlebar — Linux GTK Style */
 .titlebar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 38px;
-  background: rgba(15, 23, 42, 0.6);
-  border-bottom: 1px solid var(--border-light);
-  padding: 0 14px;
+  gap: 8px;
+  height: 36px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  padding: 0 12px;
   cursor: grab;
   user-select: none;
   flex: none;
 }
 .win.focus .titlebar {
-  background: rgba(20, 30, 48, 0.7);
+  background: #1c2128;
+  border-bottom-color: rgba(56, 189, 248, 0.3);
 }
 .titlebar .ico {
   color: var(--primary);
@@ -772,8 +822,9 @@ button, input, select, textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--fg-muted);
-  font-size: 12.5px;
+  color: #8b949e;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
