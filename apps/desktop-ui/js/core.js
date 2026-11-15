@@ -105,9 +105,37 @@ const sevChip = s => {
 };
 
 async function api(path, opts = {}) {
-  const o = { method: opts.method || "GET", headers: { "X-Guardian-Token": G.token } };
+  let token = G.token;
+  if (!token) {
+    try {
+      const s = await fetch("/api/v1/auth/session");
+      if (s.ok) {
+        const d = await s.json();
+        if (d.token) {
+          G.token = token = d.token;
+          try { sessionStorage.setItem("g_tok", token); localStorage.setItem("g_tok", token); } catch(e) {}
+        }
+      }
+    } catch (e) {}
+  }
+  const o = { method: opts.method || "GET", headers: { "X-Guardian-Token": token } };
   if (opts.body !== undefined) { o.headers["Content-Type"] = "application/json"; o.body = JSON.stringify(opts.body); }
-  const r = await fetch("/api/v1" + path, o);
+  let r = await fetch("/api/v1" + path, o);
+  if (r.status === 401) {
+    // If token was stale from an agent restart, auto-resync loopback token
+    try {
+      const s = await fetch("/api/v1/auth/session");
+      if (s.ok) {
+        const d = await s.json();
+        if (d.token && d.token !== token) {
+          G.token = token = d.token;
+          try { sessionStorage.setItem("g_tok", token); localStorage.setItem("g_tok", token); } catch(e) {}
+          o.headers["X-Guardian-Token"] = token;
+          r = await fetch("/api/v1" + path, o);
+        }
+      }
+    } catch (e) {}
+  }
   if (r.status === 401) { showLock(); throw new Error("unauthorised"); }
   if (!r.ok) { let m = r.statusText; try { m = (await r.json()).detail || m; } catch (e) { } throw new Error(typeof m === "string" ? m : JSON.stringify(m)); }
   return r.json();
@@ -127,7 +155,7 @@ function connectWS() {
   ws.onopen = () => ws.send(JSON.stringify({ token: G.token }));
   ws.onmessage = m => {
     const d = JSON.parse(m.data);
-    if (d.type === "incident") { toast(`${(SEV[d.data.severity] || SEV.low).glyph} ${d.data.title}`, d.data.severity); }
+    if (d.type === "incident") { toast(`${(SEV[d.data.severity] || SEV.low).label}: ${d.data.title}`, d.data.severity); }
     emit(d.type, d.data);
   };
   ws.onclose = () => setTimeout(() => G.token && connectWS(), 3000);

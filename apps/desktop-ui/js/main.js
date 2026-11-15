@@ -114,21 +114,19 @@
       if (!skip) await sleep(d);
     };
     b.append(el("div", { class: "dim" }, "Starting Guardian OS Desktop...\n"));
-    if (!G.token) {
-      try {
-        const sRes = await fetch("/api/v1/auth/session");
-        if (sRes.ok) {
-          const sData = await sRes.json();
-          if (sData.token) {
-            G.token = sData.token;
-            try {
-              sessionStorage.setItem("g_tok", G.token);
-              localStorage.setItem("g_tok", G.token);
-            } catch (e) {}
-          }
+    try {
+      const sRes = await fetch("/api/v1/auth/session");
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        if (sData.token) {
+          G.token = sData.token;
+          try {
+            sessionStorage.setItem("g_tok", G.token);
+            localStorage.setItem("g_tok", G.token);
+          } catch (e) {}
         }
-      } catch (e) {}
-    }
+      }
+    } catch (e) {}
     if (!G.token) { b.remove(); return showLock(); }
 
     let h;
